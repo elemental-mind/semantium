@@ -9,7 +9,7 @@ export interface Instruction
     isParametric: boolean;
 }
 
-export class Semantics<T extends InstructionRecorder<any> = DefaultInstructionRecorder>
+export class Semantics
 {
     instructionCatalogue = new Map<string, Instruction[]>();
     blockInstances = new Map<typeof InstructionBlock, InstructionBlock<any>>();
@@ -17,7 +17,7 @@ export class Semantics<T extends InstructionRecorder<any> = DefaultInstructionRe
 
     static Define<
         InstrBlckConstrs extends ParalessConstructor<InstructionBlock<any>>[],
-        InstrBldrConstr extends ParalessConstructor<InstructionRecorder<any>>>(
+        InstrBldrConstr extends ParalessConstructor<any>>(
             instructionBlocks: InstrBlckConstrs,
             instructionBuilderType?: InstrBldrConstr
         ): EntryPointObject<InstrBlckConstrs, InstrBldrConstr>
@@ -31,7 +31,7 @@ export class Semantics<T extends InstructionRecorder<any> = DefaultInstructionRe
     }
 
     private constructor(
-        public instructionBlocks: ParalessConstructor<InstructionBlock<T>>[],
+        public instructionBlocks: ParalessConstructor<InstructionBlock<any>>[],
         public RecorderType: ParalessConstructor<InstructionRecorder<any>>
     )
     {
@@ -88,11 +88,11 @@ export class Semantics<T extends InstructionRecorder<any> = DefaultInstructionRe
                 if (proxyCollection[instruction.word] !== undefined)
                     throw new Error("Double definition of init word");
 
-                proxyCollection[instruction.word] = new InitSensor(this, instruction);
+                proxyCollection[instruction.word] = new Proxy(function () {}, new InitSensor(this, instruction));
             }
         }
 
-        return proxyCollection();
+        return proxyCollection;
     }
 
     private getAllMembers(instance: object, ignoreProps: string[] = []): Map<string, PropertyDescriptor>
@@ -143,36 +143,38 @@ export class Semantics<T extends InstructionRecorder<any> = DefaultInstructionRe
 
 //#region Base Classes
 
-export class InstructionBlock<T extends InstructionRecorder<any>> extends Trait
+export class InstructionBlock<T> extends Trait
 {
     protected record!: T;
 
     protected onUseInstruction(instruction: Instruction)
     {
+        //@ts-expect-error
         this.record.onAddInstruction?.(instruction);
     }
 
     protected onUseParametricInstruction(instruction: Instruction, parameters: any[])
     {
+        //@ts-expect-error
         this.record.onAddInstruction?.(instruction, parameters);
     }
 }
 
 export class Beginning extends Trait
 {
-    protected containsInitials = true;
+    // protected containsInitials = true;
 }
 
 export class Finishing extends Trait
 {
-    protected containsCompletions = true;
+    // protected containsCompletions = true;
 }
 
 //#endregion
 
 //#region Types
 
-type EntryPointObject<InstrBlckConstrs extends Array<ParalessConstructor<InstructionBlock<any>>>, InstrRcrdr> =
+type EntryPointObject<InstrBlckConstrs extends Array<ParalessConstructor<InstructionBlock<any>>>, InstrRcrdr extends ParalessConstructor<any>> =
     TreatInstructionBlockUnion<
         Filter<
             ArrayOfConstructorsToUnionOfConstructors<InstrBlckConstrs>,
@@ -237,6 +239,6 @@ type ArrayOfConstructorsToUnionOfConstructors<T extends any[]> = T extends Array
 
 type Filter<InstanceTypeUnion, Match> = InstanceTypeUnion extends Match ? InstanceTypeUnion : never;
 
-type ExtractInstructionResult<BuilderType> = BuilderType extends ParalessConstructor<InstructionRecorder<infer T>> ? T : never;
+type ExtractInstructionResult<BuilderType extends ParalessConstructor<any>> = BuilderType extends ParalessConstructor<InstructionRecorder<infer T>> ? T : InstanceType<BuilderType>;
 
 //#endregion

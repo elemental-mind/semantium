@@ -3,8 +3,8 @@ import { Finishing, Instruction, InstructionBlock, Semantics } from "./definitio
 
 export abstract class InstructionRecorder<T> extends Trait
 {
-    onAddInstruction?(instruction: Instruction, instructionParameters?: any[]) { };
-    finalizeRecording(): T
+    protected onAddInstruction?(instruction: Instruction, instructionParameters?: any[]) { };
+    protected finalizeRecording?(): T
     {
         return this as unknown as T;
     };
@@ -13,7 +13,7 @@ export abstract class InstructionRecorder<T> extends Trait
 export class InitSensor
 {
     constructor(
-        public semanticDefinition: Semantics<any>,
+        public semanticDefinition: Semantics,
         public initialInstruction: Instruction
     ) { }
 
@@ -24,9 +24,10 @@ export class InitSensor
 
         //@ts-ignore
         const handler = new FlowSensor(this.semanticDefinition, new this.semanticDefinition.RecorderType(), [this.initialInstruction.family]);
-        const flowSensor = new Proxy({} as any, handler);
+        const flowSensor = new Proxy(function () { } as any, handler);
+        handler.proxy = flowSensor;
 
-        return flowSensor[this.initialInstruction.word];
+        return flowSensor[this.initialInstruction.word][prop];
     }
 
     apply(target: {}, thisArg: any, argumentsList: any[]): any
@@ -36,7 +37,8 @@ export class InitSensor
 
         //@ts-ignore
         const handler = new FlowSensor(this.semanticDefinition, new this.semanticDefinition.RecorderType(), [this.initialInstruction.family]);
-        const flowSensor = new Proxy({} as any, handler);
+        const flowSensor = new Proxy(function () { } as any, handler);
+        handler.proxy = flowSensor;
 
         return flowSensor[this.initialInstruction.word](...argumentsList);
     }
@@ -44,6 +46,7 @@ export class InitSensor
 
 export class FlowSensor
 {
+    public proxy: any;
     private candidateBlocks: Set<typeof InstructionBlock>;
 
     private awaitingParameters = false;
@@ -53,14 +56,13 @@ export class FlowSensor
         handlingBlock: InstructionBlock<any>;
     };
 
-    private handlingBlock?: InstructionBlock<any>;
     private finalAccessPermitted = false;
 
     private isFinalized = false;
     private finalizationResult?: any;
 
     constructor(
-        public semanticDefinition: Semantics<any>,
+        public semanticDefinition: Semantics,
         public recorder: InstructionRecorder<any>,
         permittedDescendents: (typeof InstructionBlock)[]
     )
@@ -77,18 +79,19 @@ export class FlowSensor
             throw new Error("Must provide parameters to parametric grammar element before proceeding with next word!");
 
         const instructionBlockCandidates = this.semanticDefinition.instructionCatalogue
-            .get(prop)!
-            .filter(instruction => this.candidateBlocks.has(instruction.family));
+            .get(prop)?.filter(instruction => this.candidateBlocks.has(instruction.family));
 
-        if (instructionBlockCandidates.length > 1)
-            throw new Error("Ambiguous grammar detected!");
-
-        if (instructionBlockCandidates.length === 0)
+        if (!instructionBlockCandidates || instructionBlockCandidates.length === 0)
         {
+            if (!this.finalAccessPermitted)
+                throw new Error("Word not permitted at this position.");
+
             //We assume the caller wants to access the result of the instructionRecorder
             if (!this.isFinalized)
             {
+                //@ts-expect-error
                 if (this.recorder.finalizeRecording)
+                    //@ts-expect-error
                     this.finalizationResult = this.recorder.finalizeRecording();
                 else
                     this.finalizationResult = this.recorder;
@@ -98,6 +101,10 @@ export class FlowSensor
 
             return this.finalizationResult[prop];
         }
+
+        if (instructionBlockCandidates.length > 1)
+            throw new Error("Ambiguous grammar detected!");
+
 
         const instruction = instructionBlockCandidates[0];
         const handlingBlock = this.semanticDefinition.blockInstances.get(instruction.family)!;
@@ -125,7 +132,7 @@ export class FlowSensor
                 this.candidateBlocks.add(result);
 
                 //@ts-expect-error
-                this.handlingBlock.onUseInstruction(instruction);
+                handlingBlock.onUseInstruction(instruction);
             }
             else
             {
@@ -146,10 +153,10 @@ export class FlowSensor
                 this.candidateBlocks.add(block);
 
             //@ts-expect-error
-            this.handlingBlock.onUseInstruction(instruction);
+            handlingBlock.onUseInstruction(instruction);
         }
 
-        return this;
+        return this.proxy;
     }
 
     apply(target: {}, thisArg: any, argumentsList: any[]): any
@@ -179,6 +186,8 @@ export class FlowSensor
         //@ts-expect-error
         this.parameterRecorder!.handlingBlock.onUseParametricInstruction(this.parameterRecorder!.instruction, argumentsList);
 
-        return this;
+        this.awaitingParameters = false;
+
+        return this.proxy;
     }
 }

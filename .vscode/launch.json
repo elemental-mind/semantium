@@ -6,7 +6,7 @@
             "request": "launch",
         
             // Debug current file in VSCode
-            "program": "${file}",
+            "program": "test/test.ts",
         
             /*
              * Path to tsx binary
