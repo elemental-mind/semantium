@@ -1,6 +1,5 @@
 import { Trait } from "fusium-js";
 import { InitSensor, InstructionRecorder } from "./recording.js";
-import { DefaultInstructionRecorder } from "./defaultInstructionRecorder.js";
 
 export interface Instruction
 {
@@ -19,13 +18,9 @@ export class Semantics
         InstrBlckConstrs extends ParalessConstructor<InstructionBlock<any>>[],
         InstrBldrConstr extends ParalessConstructor<any>>(
             instructionBlocks: InstrBlckConstrs,
-            instructionBuilderType?: InstrBldrConstr
+            instructionBuilderType: InstrBldrConstr
         ): EntryPointObject<InstrBlckConstrs, InstrBldrConstr>
     {
-        if(!instructionBuilderType)
-            //@ts-ignore
-            instructionBuilderType = DefaultInstructionRecorder;
-
         const library = new Semantics(instructionBlocks, instructionBuilderType!);
         return library.dictionary as EntryPointObject<InstrBlckConstrs, InstrBldrConstr>;
     }
