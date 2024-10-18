@@ -1,0 +1,7 @@
+node_modules/
+.git/
+.vscode/
+source/
+concept/
+test/
+tsconfig.json
