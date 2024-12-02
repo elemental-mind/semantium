@@ -421,6 +421,10 @@ assert(noAccess1 === noAccess2);
 Thorughout this API explainer we have worked our way from the simple conceptual example to a more complex use of hooks etc. In summary we end up with the following resulting grammar definition:
 
 ```typescript
+// Necessary imports
+import { FusionOf } from "fusium-js";
+import { Beginning, Finishing, InstructionBlock } from "semantium";
+
 // Define the instruction blocks
 class Subject extends FusionOf(Beginning, InstructionBlock<Sequence>) {
     John = Verb;
