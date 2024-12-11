@@ -1,5 +1,5 @@
 import { FusionOf } from "fusium-js";
-import { Beginning, InstructionBlock, Finishing, Semantics } from "../source/components/definition.js";
+import { Beginning, InstructionBlock, Finishing, Semantics } from "../../source/components/definition.js";
 import { InteractionQueryBuilder, InteractionQuery } from "./builder.js";
 
 class Interaction extends FusionOf(Beginning, Finishing, InstructionBlock<InteractionQueryBuilder>)

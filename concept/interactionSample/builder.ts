@@ -1,4 +1,4 @@
-import { InstructionRecorder } from "../source/components/recording.js";
+import { InstructionRecorder } from "../../source/components/recording.js";
 
 export class InteractionQueryBuilder extends InstructionRecorder<InteractionQuery>
 { }
