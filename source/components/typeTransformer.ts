@@ -18,7 +18,7 @@ export type TransformInstructionBlock<BlockInstance, ResultClass extends Generic
     [MemberName in keyof BlockInstance]:
     BlockInstance[MemberName] extends (...args: any[]) => any ? TransformParametricWord<BlockInstance[MemberName], ResultClass> :
     BlockInstance[MemberName] extends HybridMember<any, any, any> ? TransformHybridWord<BlockInstance[MemberName], ResultClass> :
-    TransformWord<BlockInstance[MemberName], ResultClass>;
+    TransformStaticWord<BlockInstance[MemberName], ResultClass>;
 };
 
 export type TransformParametricWord<Member, ResultClass extends GenericConstructor> =
@@ -31,11 +31,11 @@ export type TransformHybridWord<Member, ResultClass extends GenericConstructor> 
     { (...args: Parameters): TransformContinuation<CalledContinuation, ResultClass>; } & TransformContinuation<AccessContinuation, ResultClass>
     : never;
 
-export type TransformWord<WordDefinition, ResultClass extends GenericConstructor> = TransformContinuation<WordDefinition, ResultClass>;
+export type TransformStaticWord<WordDefinition, ResultClass extends GenericConstructor> = TransformContinuation<WordDefinition, ResultClass>;
 
 export type TransformContinuation<Continuation, ResultClass extends GenericConstructor> =
     Continuation extends Array<infer BlockClasses extends (ParalessConstructor<any> | ResultClass)> ? TransformContinuationArray<BlockClasses, ResultClass> :
-    Continuation extends ParalessConstructor<InstructionBlock<any>> ? TransformInstructionBlock<Continuation, ResultClass> :
+    Continuation extends ParalessConstructor<InstructionBlock<any>> ? TransformInstructionBlock<InstanceType<Continuation>, ResultClass> :
     Continuation extends ResultClass ? InstanceType<ResultClass> :
     never;
 
@@ -49,5 +49,4 @@ type UnionToIntersection<U> =
     (x: infer I) => any ? I : never;
 
 type ArrayOfConstructorsToUnionOfConstructors<T extends any[]> = T extends Array<infer E> ? E : never;
-
 type Filter<InstanceTypeUnion, Match> = InstanceTypeUnion extends Match ? InstanceTypeUnion : never;

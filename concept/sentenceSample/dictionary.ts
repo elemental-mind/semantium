@@ -1,6 +1,7 @@
 import { FusionOf } from "fusium-js";
-import { Beginning, EntryPointObject, InstructionBlock, Semantics, TransformContinuation, TransformHybridWord, TransformInstructionBlock } from "../../source/components/definition.js";
+import { Beginning, InstructionBlock, Semantics} from "../../source/components/definition.js";
 import { SentenceDefinition } from "./builder.js";
+import { EntryPointObject, TransformContinuation, TransformHybridWord, TransformInstructionBlock } from "../../source/components/types.js";
 
 class Start extends FusionOf(Beginning, InstructionBlock<SentenceDefinition>)
 {

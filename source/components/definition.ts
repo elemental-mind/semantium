@@ -5,7 +5,7 @@ import {
     EntryPointObject,
     GenericConstructor,
     ParalessConstructor,
- } from "./types.js";
+ } from "./typeTransformer.js";
 
 export interface Instruction
 {
