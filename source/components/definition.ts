@@ -8,26 +8,36 @@ export interface Instruction
     isParametric: boolean;
 }
 
+interface PureSemantic<T extends ParalessConstructor<any>>
+{
+    blocks: ParalessConstructor<InstructionBlock<InstanceType<T>>>[];
+    result: T;
+}
+
+interface RecorderSemantic<T extends GenericConstructor<any, any>>
+{
+    blocks: ParalessConstructor<InstructionBlock<InstanceType<T>>>[];
+    recorder: ParalessConstructor<InstructionRecorder<InstanceType<T>>>;
+    result: T;
+}
+
 export class Semantics
 {
     instructionCatalogue = new Map<string, Instruction[]>();
     blockInstances = new Map<typeof InstructionBlock, InstructionBlock<any>>();
     dictionary: any;
 
-    static Define<
-        InstrBlckConstrs extends ParalessConstructor<InstructionBlock<any>>[],
-        InstrBldrConstr extends ParalessConstructor<any>>(
-            instructionBlocks: InstrBlckConstrs,
-            instructionBuilderType: InstrBldrConstr
-        ): EntryPointObject<InstrBlckConstrs, InstrBldrConstr>
+    static Define<M extends SemanticDefinition<any>, T extends GenericConstructor<any, any>>(
+        definition: SemanticDefinition<T>
+    ): EntryPointObject<M>
     {
-        const library = new Semantics(instructionBlocks, instructionBuilderType!);
-        return library.dictionary as EntryPointObject<InstrBlckConstrs, InstrBldrConstr>;
+        const library = new Semantics(definition);
+
+        return library.dictionary as EntryPointObject<M>;
     }
 
     private constructor(
-        public instructionBlocks: ParalessConstructor<InstructionBlock<any>>[],
-        public RecorderType: ParalessConstructor<InstructionRecorder<any>>
+        public definition: SemanticDefinition<any>
     )
     {
         this.generateBlockInstances();
@@ -37,7 +47,7 @@ export class Semantics
 
     private generateBlockInstances()
     {
-        for (const Block of this.instructionBlocks)
+        for (const Block of this.definition.blocks)
             //@ts-ignore
             this.blockInstances.set(Block, new Block());
     }
@@ -83,7 +93,7 @@ export class Semantics
                 if (proxyCollection[instruction.word] !== undefined)
                     throw new Error("Double definition of init word");
 
-                proxyCollection[instruction.word] = new Proxy(function () {}, new InitSensor(this, instruction));
+                proxyCollection[instruction.word] = new Proxy(function () { }, new InitSensor(this, instruction));
             }
         }
 
@@ -169,71 +179,57 @@ export class Finishing extends Trait
 
 //#region Types
 
-type EntryPointObject<InstrBlckConstrs extends Array<ParalessConstructor<InstructionBlock<any>>>, InstrRcrdr extends ParalessConstructor<any>> =
-    TreatInstructionBlockUnion<
-        Filter<
-            ArrayOfConstructorsToUnionOfConstructors<InstrBlckConstrs>,
-            ParalessConstructor<Beginning>
-        >,
-        ExtractInstructionResult<InstrRcrdr>
-    >;
+type SemanticDefinition<T extends GenericConstructor<any, any>> = PureSemantic<T> | RecorderSemantic<T>;
 
-export type TreatInstructionBlockUnion<BlckUnion extends ParalessConstructor<InstructionBlock<any>>, InstrResult> =
-    UnionToIntersection<
-        TreatInstructionBlock<
-            BlckUnion,
-            InstrResult
-        >
-    >;
+export type EntryPointObject<M extends SemanticDefinition<any>> =
+    M extends {
+        blocks: infer BlockClasses extends Array<ParalessConstructor<InstructionBlock<any>>>, 
+        result: infer ResultClass extends GenericConstructor<any, any>
+    } ?
+    TransformContinuationArray<Filter<ArrayOfConstructorsToUnionOfConstructors<BlockClasses>, ParalessConstructor<Beginning>>,ResultClass> :
+    never;
+    
+type TransformContinuationArray<ContinuationOptions extends ParalessConstructor<InstructionBlock<any>>, ResultClass extends GenericConstructor> =
+    UnionToIntersection<TransformInstructionBlock<InstanceType<ContinuationOptions>, ResultClass>>;
 
-export type TreatInstructionBlock<InstrBlckConstr extends ParalessConstructor<InstructionBlock<any>>, InstrReslt> =
-    InstrBlckConstr extends ParalessConstructor<Finishing> ?
-    AddInstructionResultMembers<
-        UnwrapBlockMemberTypesOrReturns<
-            InstanceType<InstrBlckConstr>,
-            InstrReslt
-        >,
-        InstrReslt
-    >
-    : UnwrapBlockMemberTypesOrReturns<
-        InstanceType<InstrBlckConstr>,
-        InstrReslt
-    >;
-
-type UnwrapBlockMemberTypesOrReturns<InstrBlck, InstrReslt> = {
-    [MemberName in keyof InstrBlck]:
-    InstrBlck[MemberName] extends (...args: any[]) => any ?
-    UnwrapMemberReturn<InstrBlck[MemberName], InstrReslt> :
-    UnwrapMemberType<InstrBlck[MemberName], InstrReslt>;
+export type TransformInstructionBlock<BlockInstance, ResultClass extends GenericConstructor> = {
+    [MemberName in keyof BlockInstance]:
+    BlockInstance[MemberName] extends (...args: any[]) => any ? TransformParametricWord<BlockInstance[MemberName], ResultClass> :
+    BlockInstance[MemberName] extends HybridMember<any, any, any> ? TransformHybridWord<BlockInstance[MemberName], ResultClass> :
+    TransformWord<BlockInstance[MemberName], ResultClass>;
 };
 
-type UnwrapMemberReturn<Member, InstrRslt> =
-    Member extends (...args: infer A) => Array<infer InstrBlckConstrs extends ParalessConstructor<InstructionBlock<any>>> ? (...args: A) => TreatInstructionBlockUnion<InstrBlckConstrs, InstrRslt> :
-    Member extends (...args: infer A) => (infer InstrBlckConstr extends ParalessConstructor<InstructionBlock<any>>) ? (...args: A) => TreatInstructionBlock<InstrBlckConstr, InstrRslt> :
+type TransformParametricWord<Member, ResultClass extends GenericConstructor> =
+    Member extends (...args: infer Parameters) => infer ContinuationBlocks ? 
+    (...args: Parameters) => TransformContinuation<ContinuationBlocks, ResultClass> :
     never;
 
-type UnwrapMemberType<Member, InstrReslt> =
-    Member extends Array<infer InstrBlckConstrs extends ParalessConstructor<any>> ? TreatInstructionBlockUnion<InstrBlckConstrs, InstrReslt> :
-    Member extends ParalessConstructor<InstructionBlock<any>> ? TreatInstructionBlock<Member, InstrReslt> :
+export type TransformHybridWord<Member, ResultClass extends GenericConstructor> =
+    Member extends HybridMember<infer Parameters, infer CalledContinuation, infer AccessContinuation> ?
+    { (...args: Parameters): TransformContinuation<CalledContinuation, ResultClass>; } & TransformContinuation<AccessContinuation, ResultClass>
+    : never;
+
+type TransformWord<WordDefinition, ResultClass extends GenericConstructor> = TransformContinuation<WordDefinition, ResultClass>;
+
+export type TransformContinuation<Continuation, ResultClass extends GenericConstructor> =
+    Continuation extends Array<infer BlockClasses extends (ParalessConstructor<any> | ResultClass)> ? TransformContinuationArray<BlockClasses, ResultClass> :
+    Continuation extends ParalessConstructor<InstructionBlock<any>> ? TransformInstructionBlock<Continuation, ResultClass> :
+    Continuation extends ResultClass ? InstanceType<ResultClass> :
     never;
 
-type AddInstructionResultMembers<InstrBlck, InstrRslt> = {
-    [Member in keyof InstrBlck]:
-    InstrBlck[Member] extends (...args: infer A) => infer R ?
-    (...args: A) => R & InstrRslt :
-    & InstrBlck[Member] & InstrRslt
-};
+type HybridMember<Parameters extends Array<unknown>, CalledContinuation, AccessContinuation> = { whenCalled: (...args: Parameters) => CalledContinuation, whenAccessed: AccessContinuation; };
+
+type ParalessConstructor<InstanceType = any> = abstract new () => InstanceType;
+type GenericConstructor<Parameters extends Array<any> = any, InstanceType = any> = { new(...args: Parameters): InstanceType; };
 
 type UnionToIntersection<U> =
     (U extends any ? (x: U) => any : never) extends
     (x: infer I) => any ? I : never;
 
-type ParalessConstructor<InstanceType = any> = abstract new () => InstanceType;
-
 type ArrayOfConstructorsToUnionOfConstructors<T extends any[]> = T extends Array<infer E> ? E : never;
 
 type Filter<InstanceTypeUnion, Match> = InstanceTypeUnion extends Match ? InstanceTypeUnion : never;
 
-type ExtractInstructionResult<BuilderType extends ParalessConstructor<any>> = BuilderType extends ParalessConstructor<InstructionRecorder<infer T>> ? T : InstanceType<BuilderType>;
+type ResultMembers<RecorderType extends ParalessConstructor<any>> = RecorderType extends ParalessConstructor<InstructionRecorder<infer T>> ? T : RecorderType;
 
 //#endregion

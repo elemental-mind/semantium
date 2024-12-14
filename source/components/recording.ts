@@ -23,7 +23,7 @@ export class InitSensor
             throw new Error("This instruction expects parameters.");
 
         //@ts-ignore
-        const handler = new FlowSensor(this.semanticDefinition, new this.semanticDefinition.RecorderType(), [this.initialInstruction.family]);
+        const handler = new FlowSensor(this.semanticDefinition, new this.semanticDefinition.definition.recorder(), [this.initialInstruction.family]);
         const flowSensor = new Proxy(function () { } as any, handler);
         handler.proxy = flowSensor;
 
@@ -36,7 +36,7 @@ export class InitSensor
             throw new Error("This instruction is not parametric.");
 
         //@ts-ignore
-        const handler = new FlowSensor(this.semanticDefinition, new this.semanticDefinition.RecorderType(), [this.initialInstruction.family]);
+        const handler = new FlowSensor(this.semanticDefinition, new this.semanticDefinition.definition.recorder(), [this.initialInstruction.family]);
         const flowSensor = new Proxy(function () { } as any, handler);
         handler.proxy = flowSensor;
 
