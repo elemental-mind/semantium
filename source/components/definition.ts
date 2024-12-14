@@ -1,5 +1,11 @@
 import { Trait } from "fusium-js";
 import { InitSensor, InstructionRecorder } from "./recording.js";
+import { 
+    SemanticDefinition,
+    EntryPointObject,
+    GenericConstructor,
+    ParalessConstructor,
+ } from "./types.js";
 
 export interface Instruction
 {
@@ -8,13 +14,13 @@ export interface Instruction
     isParametric: boolean;
 }
 
-interface PureSemantic<T extends ParalessConstructor<any>>
+export interface PureSemantic<T extends ParalessConstructor<any>>
 {
     blocks: ParalessConstructor<InstructionBlock<InstanceType<T>>>[];
     result: T;
 }
 
-interface RecorderSemantic<T extends GenericConstructor<any, any>>
+export interface RecorderSemantic<T extends GenericConstructor<any, any>>
 {
     blocks: ParalessConstructor<InstructionBlock<InstanceType<T>>>[];
     recorder: ParalessConstructor<InstructionRecorder<InstanceType<T>>>;
@@ -174,62 +180,5 @@ export class Finishing extends Trait
 {
     // protected containsCompletions = true;
 }
-
-//#endregion
-
-//#region Types
-
-type SemanticDefinition<T extends GenericConstructor<any, any>> = PureSemantic<T> | RecorderSemantic<T>;
-
-export type EntryPointObject<M extends SemanticDefinition<any>> =
-    M extends {
-        blocks: infer BlockClasses extends Array<ParalessConstructor<InstructionBlock<any>>>, 
-        result: infer ResultClass extends GenericConstructor<any, any>
-    } ?
-    TransformContinuationArray<Filter<ArrayOfConstructorsToUnionOfConstructors<BlockClasses>, ParalessConstructor<Beginning>>,ResultClass> :
-    never;
-    
-type TransformContinuationArray<ContinuationOptions extends ParalessConstructor<InstructionBlock<any>>, ResultClass extends GenericConstructor> =
-    UnionToIntersection<TransformInstructionBlock<InstanceType<ContinuationOptions>, ResultClass>>;
-
-export type TransformInstructionBlock<BlockInstance, ResultClass extends GenericConstructor> = {
-    [MemberName in keyof BlockInstance]:
-    BlockInstance[MemberName] extends (...args: any[]) => any ? TransformParametricWord<BlockInstance[MemberName], ResultClass> :
-    BlockInstance[MemberName] extends HybridMember<any, any, any> ? TransformHybridWord<BlockInstance[MemberName], ResultClass> :
-    TransformWord<BlockInstance[MemberName], ResultClass>;
-};
-
-type TransformParametricWord<Member, ResultClass extends GenericConstructor> =
-    Member extends (...args: infer Parameters) => infer ContinuationBlocks ? 
-    (...args: Parameters) => TransformContinuation<ContinuationBlocks, ResultClass> :
-    never;
-
-export type TransformHybridWord<Member, ResultClass extends GenericConstructor> =
-    Member extends HybridMember<infer Parameters, infer CalledContinuation, infer AccessContinuation> ?
-    { (...args: Parameters): TransformContinuation<CalledContinuation, ResultClass>; } & TransformContinuation<AccessContinuation, ResultClass>
-    : never;
-
-type TransformWord<WordDefinition, ResultClass extends GenericConstructor> = TransformContinuation<WordDefinition, ResultClass>;
-
-export type TransformContinuation<Continuation, ResultClass extends GenericConstructor> =
-    Continuation extends Array<infer BlockClasses extends (ParalessConstructor<any> | ResultClass)> ? TransformContinuationArray<BlockClasses, ResultClass> :
-    Continuation extends ParalessConstructor<InstructionBlock<any>> ? TransformInstructionBlock<Continuation, ResultClass> :
-    Continuation extends ResultClass ? InstanceType<ResultClass> :
-    never;
-
-type HybridMember<Parameters extends Array<unknown>, CalledContinuation, AccessContinuation> = { whenCalled: (...args: Parameters) => CalledContinuation, whenAccessed: AccessContinuation; };
-
-type ParalessConstructor<InstanceType = any> = abstract new () => InstanceType;
-type GenericConstructor<Parameters extends Array<any> = any, InstanceType = any> = { new(...args: Parameters): InstanceType; };
-
-type UnionToIntersection<U> =
-    (U extends any ? (x: U) => any : never) extends
-    (x: infer I) => any ? I : never;
-
-type ArrayOfConstructorsToUnionOfConstructors<T extends any[]> = T extends Array<infer E> ? E : never;
-
-type Filter<InstanceTypeUnion, Match> = InstanceTypeUnion extends Match ? InstanceTypeUnion : never;
-
-type ResultMembers<RecorderType extends ParalessConstructor<any>> = RecorderType extends ParalessConstructor<InstructionRecorder<infer T>> ? T : RecorderType;
 
 //#endregion
