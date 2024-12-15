@@ -5,12 +5,12 @@ export type SemanticDefinition<T extends GenericConstructor<any, any>> = PureSem
 
 export type EntryPointObject<M extends SemanticDefinition<any>> =
     M extends {
-        blocks: infer BlockClasses extends Array<ParalessConstructor<InstructionBlock<any>>>, 
-        result: infer ResultClass extends GenericConstructor<any, any>
+        blocks: infer BlockClasses extends Array<GenericConstructor>,
+        result: infer ResultClass extends GenericConstructor<any, any>;
     } ?
-    TransformContinuationArray<Filter<ArrayOfConstructorsToUnionOfConstructors<BlockClasses>, ParalessConstructor<Beginning>>,ResultClass> :
+    TransformContinuationArray<FilterType<BlockClasses, Beginning>, ResultClass> :
     never;
-    
+
 export type TransformContinuationArray<ContinuationOptions extends ParalessConstructor<InstructionBlock<any>>, ResultClass extends GenericConstructor> =
     UnionToIntersection<TransformInstructionBlock<InstanceType<ContinuationOptions>, ResultClass>>;
 
@@ -22,7 +22,7 @@ export type TransformInstructionBlock<BlockInstance, ResultClass extends Generic
 };
 
 export type TransformParametricWord<Member, ResultClass extends GenericConstructor> =
-    Member extends (...args: infer Parameters) => infer ContinuationBlocks ? 
+    Member extends (...args: infer Parameters) => infer ContinuationBlocks ?
     (...args: Parameters) => TransformContinuation<ContinuationBlocks, ResultClass> :
     never;
 
@@ -48,5 +48,5 @@ type UnionToIntersection<U> =
     (U extends any ? (x: U) => any : never) extends
     (x: infer I) => any ? I : never;
 
-type ArrayOfConstructorsToUnionOfConstructors<T extends any[]> = T extends Array<infer E> ? E : never;
-type Filter<InstanceTypeUnion, Match> = InstanceTypeUnion extends Match ? InstanceTypeUnion : never;
+type FilterType<Classes extends Array<GenericConstructor>, TargetType> =
+    Classes extends Array<infer C extends GenericConstructor> ? C extends C ? InstanceType<C> extends TargetType ? C : never : never : never;

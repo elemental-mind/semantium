@@ -33,13 +33,13 @@ export class Semantics
     blockInstances = new Map<typeof InstructionBlock, InstructionBlock<any>>();
     dictionary: any;
 
-    static Define<M extends SemanticDefinition<any>, T extends GenericConstructor<any, any>>(
-        definition: SemanticDefinition<T>
-    ): EntryPointObject<M>
+    static Define<T extends SemanticDefinition<any>>(
+        definition: T
+    ): EntryPointObject<T>
     {
         const library = new Semantics(definition);
 
-        return library.dictionary as EntryPointObject<M>;
+        return library.dictionary as EntryPointObject<T>;
     }
 
     private constructor(
@@ -173,12 +173,7 @@ export class InstructionBlock<T> extends Trait
 
 export class Beginning extends Trait
 {
-    // protected containsInitials = true;
-}
-
-export class Finishing extends Trait
-{
-    // protected containsCompletions = true;
+    declare private _beginningBlock: void;
 }
 
 //#endregion

@@ -1,7 +1,7 @@
 import { FusionOf } from "fusium-js";
 import { Beginning, InstructionBlock } from "./definition.ts";
 import { InstructionRecorder } from "./recording.ts";
-import { TransformContinuation, TransformInstructionBlock } from "./typeTransformer.ts";
+import { EntryPointObject, GenericConstructor, ParalessConstructor, TransformContinuation, TransformContinuationArray, TransformInstructionBlock } from "./typeTransformer.ts";
 
 export class Result<T = string> extends InstructionRecorder<Result<T>>
 {
@@ -123,5 +123,46 @@ export class TransformContinuationTests
         //Result transformed
         transformed.elements;
         transformed.matchInSequence([]);
+    }
+}
+
+export class EntryPointObjectTests
+{
+    EntryPointObjectShouldGetTransformed()
+    {
+        const transformed = {} as EntryPointObject<typeof configuration>;
+
+        //configuration transformed
+        transformed.beginsWith("hello").followedBy("world").followedBy.optional("blah").endsWith("!");
+    }
+}
+
+export class TypeTransformationTests
+{
+    ArrayToUnionTest()
+    {
+        type BlockArray = [typeof Start, typeof Continuation, typeof MultiMatch];
+        type AsUnion = BlockArray[number]; // Should be Start | Continuation | MultiMatch
+    }
+
+    FilterBeginningTest()
+    {
+        type BlockUnion = typeof Start | typeof Continuation | typeof MultiMatch;
+        type OnlyBeginning = BlockUnion & ParalessConstructor<Beginning>; // Should be just Start
+    }
+
+    FullChainTest()
+    {
+        type Config = {
+            blocks: Array<(typeof Start | typeof Continuation | typeof MultiMatch)>;
+            result: typeof Result;
+        };
+
+        const transformed = {} as EntryPointObject<Config>; // Should only expose Start methods
+        
+        transformed.beginsWith;
+        //@ts-expect-error
+        transformed.optional;
+
     }
 }
