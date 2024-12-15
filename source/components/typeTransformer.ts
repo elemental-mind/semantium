@@ -39,7 +39,11 @@ export type TransformContinuation<Continuation, ResultClass extends GenericConst
     Continuation extends ResultClass ? InstanceType<ResultClass> :
     never;
 
-type HybridMember<Parameters extends Array<unknown>, CalledContinuation, AccessContinuation> = { whenCalled: (...args: Parameters) => CalledContinuation, whenAccessed: AccessContinuation; };
+type HybridMember<Parameters extends Array<unknown>, CalledContinuation, AccessContinuation> =
+    {
+        whenCalled: (...args: Parameters) => CalledContinuation,
+        whenAccessed: (() => AccessContinuation) | AccessContinuation;
+    };
 
 export type ParalessConstructor<InstanceType = any> = abstract new () => InstanceType;
 export type GenericConstructor<Parameters extends Array<any> = any, InstanceType = any> = { new(...args: Parameters): InstanceType; };
