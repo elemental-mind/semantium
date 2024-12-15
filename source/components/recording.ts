@@ -1,7 +1,6 @@
-import { Trait } from "fusium-js";
-import { Finishing, Instruction, InstructionBlock, Semantics } from "./definition.js";
+import { Instruction, InstructionBlock, Semantics } from "./definition.js";
 
-export abstract class InstructionRecorder<T> extends Trait
+export abstract class InstructionRecorder<T>
 {
     protected onAddInstruction?(instruction: Instruction, instructionParameters?: any[]) { };
     protected finalizeRecording?(): T

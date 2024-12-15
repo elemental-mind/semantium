@@ -1,4 +1,3 @@
-import { Trait } from "fusium-js";
 import { InitSensor, InstructionRecorder } from "./recording.js";
 import { 
     SemanticDefinition,
@@ -87,7 +86,7 @@ export class Semantics
 
         for (const [family, instance] of this.blockInstances)
         {
-            if (instance instanceof Beginning)
+            if (instance instanceof InitialInstructionBlock)
                 initGroups.add(family);
         }
 
@@ -154,7 +153,7 @@ export class Semantics
 
 //#region Base Classes
 
-export class InstructionBlock<T> extends Trait
+export class InstructionBlock<T> 
 {
     protected record!: T;
 
@@ -171,9 +170,10 @@ export class InstructionBlock<T> extends Trait
     }
 }
 
-export class Beginning extends Trait
+export class InitialInstructionBlock<T> extends InstructionBlock<T>
 {
-    declare private _beginningBlock: void;
+    //We declare a virtual member here for type matching purposes.
+    declare private _initInstructionBlock: void;
 }
 
 //#endregion
