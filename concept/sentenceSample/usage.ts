@@ -2,18 +2,20 @@ import { beginsWith } from "./dictionary.js";
 
 function concept()
 {
-    const dayDescription = 
+    const dayDescription =
         beginsWith("I feel")
-        .followedBy.optional("really")
-        .followedBy.either("great", "good", "bad", "shit")
-        .endsWith("today");
-    
-    const wheatherDescription = 
+            .followedBy.optional("really")
+            .followedBy.either("great", "good", "bad", "shit")
+            .endsWith("today");
+
+    const wheatherDescription =
         beginsWith.either("This", "Last")
-        .followedBy("month")
-        .followedBy("is", "was")
-        .followedBy.optional.either("really", "mildly")
-        .endsWith.either("rainy", "sunny", "cloudy");
+            .followedBy("month")
+            .followedBy.either("was", "is")
+            .followedBy.optional.either("really", "mildly")
+            .endsWith.either("rainy", "sunny", "cloudy");
+
+    return { wheatherDescription, dayDescription };
 }
 
 concept();
