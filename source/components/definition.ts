@@ -1,32 +1,16 @@
-import { InitSensor, InstructionRecorder } from "./recording.js";
 import { 
     SemanticDefinition,
     EntryPointObject,
-    GenericConstructor,
-    ParalessConstructor,
  } from "./typeTransformer.js";
 
 export interface Instruction
 {
+    semantic: Semantic,
     family: typeof InstructionBlock<any>,
-    word: string;
-    isParametric: boolean;
+    word: string
 }
 
-export interface PureSemantic<T extends ParalessConstructor<any>>
-{
-    blocks: ParalessConstructor<InstructionBlock<InstanceType<T>>>[];
-    result: T;
-}
-
-export interface RecorderSemantic<T extends GenericConstructor<any, any>>
-{
-    blocks: ParalessConstructor<InstructionBlock<InstanceType<T>>>[];
-    recorder: ParalessConstructor<InstructionRecorder<InstanceType<T>>>;
-    result: T;
-}
-
-export class Semantics
+export class Semantic
 {
     instructionCatalogue = new Map<string, Instruction[]>();
     blockInstances = new Map<typeof InstructionBlock, InstructionBlock<any>>();
@@ -36,7 +20,7 @@ export class Semantics
         definition: T
     ): EntryPointObject<T>
     {
-        const library = new Semantics(definition);
+        const library = new Semantic(definition);
 
         return library.dictionary as EntryPointObject<T>;
     }
