@@ -1,14 +1,19 @@
-import { InstructionBlock, Beginning } from "./definition.js";
-import { PureSemantic, RecorderSemantic } from "./definition.js";
+import { InitialInstructionBlock, InstructionBlock } from "./definition.js";
+import type { InstructionRecorder } from "./recording.js";
 
-export type SemanticDefinition<T extends GenericConstructor<any, any>> = PureSemantic<T> | RecorderSemantic<T>;
+export interface SemanticDefinition<T extends GenericConstructor<any, any>>
+{
+    blocks: ParalessConstructor<InstructionBlock<InstanceType<T>>>[];
+    recorder?: ParalessConstructor<InstructionRecorder<InstanceType<T>>>;
+    result: T;
+}
 
 export type EntryPointObject<M extends SemanticDefinition<any>> =
     M extends {
         blocks: infer BlockClasses extends Array<GenericConstructor>,
         result: infer ResultClass extends GenericConstructor<any, any>;
     } ?
-    TransformContinuationArray<FilterType<BlockClasses, Beginning>, ResultClass> :
+    TransformContinuationArray<FilterType<BlockClasses, InitialInstructionBlock<any>>, ResultClass> :
     never;
 
 export type TransformContinuationArray<ContinuationOptions extends ParalessConstructor<InstructionBlock<any>>, ResultClass extends GenericConstructor> =
@@ -45,7 +50,7 @@ type HybridMember<Parameters extends Array<unknown>, CalledContinuation, AccessC
         whenAccessed: (() => AccessContinuation) | AccessContinuation;
     };
 
-export type ParalessConstructor<InstanceType = any> = abstract new () => InstanceType;
+export type ParalessConstructor<InstanceType = any> = {new (): InstanceType};
 export type GenericConstructor<Parameters extends Array<any> = any, InstanceType = any> = { new(...args: Parameters): InstanceType; };
 
 type UnionToIntersection<U> =
