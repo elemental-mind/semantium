@@ -1,8 +1,6 @@
 export {
-    Semantics,
+    Semantic,
     InstructionBlock,
-    Beginning,
-    Finishing
 } from "./components/definition.js";
 
 export {
