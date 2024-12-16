@@ -1,31 +1,31 @@
-import { FusionOf } from "fusium-js";
-import { Beginning, Finishing, InstructionBlock, InstructionRecorder } from "../source/semantium.js";
-import { Instruction, Semantics } from "../source/components/definition.js";
+import { InstructionBlock, InstructionRecorder } from "../source/semantium.js";
+import { InitialInstructionBlock, Instruction } from "../source/components/definition.js";
 
 //#region Language Blocks
 
-export class BaseBlock extends FusionOf(Beginning, Finishing, InstructionBlock<Sequence>)
+export class BaseBlock extends InitialInstructionBlock<Sequence>
 {
-    A = TransitionBlock;
-    B = TransitionBlock;
-    C = TransitionBlock;
+    A = [TransitionBlock, Sequence];
+    B = [TransitionBlock, Sequence];
+    C = [TransitionBlock, Sequence];
 
-    M = ModifierBlock;
+    Q = Sequence;
+    M = ComplexMemberBlock;
 
-    X = (nmbr: number) => TransitionBlock;
-    Y = (string: number) => TransitionBlock;
-    Z = (bool: Boolean) => TransitionBlock;
+    X = (nmbr: number) => [TransitionBlock, Sequence];
+    Y = (string: number) => [TransitionBlock, Sequence];
+    Z = (bool: Boolean) => [TransitionBlock, Sequence];
 }
 
-export class AdditionalInitialBlock extends FusionOf(Beginning, InstructionBlock<Sequence>)
+export class MultiInitTestBlock extends InitialInstructionBlock<Sequence>
 {
-    Additional = TransitionBlock;
+    DummyMember = TransitionBlock;
 }
 
-export class ModifierBlock extends InstructionBlock<Sequence>
+export class ComplexMemberBlock extends InstructionBlock<Sequence>
 {
-    add = (obj: Object) => [ModifierBlock, TransitionBlock];
-    register = [ModifierBlock, TransitionBlock];
+    add = (obj: Object) => [ComplexMemberBlock, TransitionBlock];
+    register = [ComplexMemberBlock, TransitionBlock];
 
     get toBase() { return BaseBlock; }
 }
@@ -37,7 +37,12 @@ export class TransitionBlock extends InstructionBlock<Sequence>
 
 //#endregion
 
-export class Sequence extends InstructionRecorder<Sequence>
+export class Sequence
+{
+    sequence = "";
+}
+
+export class SequenceRecorder extends InstructionRecorder<Sequence>
 {
     sequence = "";
 
@@ -46,9 +51,3 @@ export class Sequence extends InstructionRecorder<Sequence>
         this.sequence += instructionParameters ? `.${instruction.word}(${instructionParameters.join(",")})` : `.${instruction.word}`;
     }
 }
-
-export const dictionary = Semantics.Define([BaseBlock, ModifierBlock, TransitionBlock], Sequence);
-
-export const {
-    A, B, C, M, X, Y, Z
-} = dictionary;
