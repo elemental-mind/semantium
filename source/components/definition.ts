@@ -1,37 +1,32 @@
-import { 
-    SemanticDefinition,
-    EntryPointObject,
- } from "./typeTransformer.js";
-
-export interface Instruction
+import
 {
-    semantic: Semantic,
-    family: typeof InstructionBlock<any>,
-    word: string
-}
+    SemanticDefinition,
+    EntryPointObject as Dictionary,
+} from "./typeTransformer.js";
 
 export class Semantic
 {
     instructionCatalogue = new Map<string, Instruction[]>();
     blockInstances = new Map<typeof InstructionBlock, InstructionBlock<any>>();
-    dictionary: any;
+    dictProxy: Dictionary<any>;
 
     static Define<T extends SemanticDefinition<any>>(
-        definition: T
-    ): EntryPointObject<T>
+        definition: T,
+        withAutoInitializers: boolean
+    ): Dictionary<T>
     {
         const library = new Semantic(definition);
 
-        return library.dictionary as EntryPointObject<T>;
+        return library.dictProxy as Dictionary<T>;
     }
 
     private constructor(
         public definition: SemanticDefinition<any>
     )
     {
+        this.dictProxy = new Proxy({}, {});
         this.generateBlockInstances();
         this.fillCatalogue();
-        this.dictionary = this.generateInitProxies();
     }
 
     private generateBlockInstances()
@@ -49,11 +44,7 @@ export class Semantic
 
             for (const [prop, propDescriptor] of members) 
             {
-                const instruction: Instruction = {
-                    family,
-                    word: prop,
-                    isParametric: this.isParametric(propDescriptor)
-                };
+                const instruction = Instruction.From(this, family, prop);
 
                 if (this.instructionCatalogue.has(prop))
                     this.instructionCatalogue.get(prop)?.push(instruction);
@@ -63,37 +54,10 @@ export class Semantic
         }
     }
 
-    private generateInitProxies()
-    {
-        const initGroups = new Set<typeof InstructionBlock>();
-        const proxyCollection: any = {};
-
-        for (const [family, instance] of this.blockInstances)
-        {
-            if (instance instanceof InitialInstructionBlock)
-                initGroups.add(family);
-        }
-
-        const instructions = [...this.instructionCatalogue.values()].flatMap(i => i);
-        for (const instruction of instructions)
-        {
-            if (initGroups.has(instruction.family))
-            {
-                if (proxyCollection[instruction.word] !== undefined)
-                    throw new Error("Double definition of init word");
-
-                proxyCollection[instruction.word] = new Proxy(function () { }, new InitSensor(this, instruction));
-            }
-        }
-
-        return proxyCollection;
-    }
-
     private getAllMembers(instance: object, ignoreProps: string[] = []): Map<string, PropertyDescriptor>
     {
         const members = new Map<string, PropertyDescriptor>();
 
-        // Include own properties
         const ownProps = Object.getOwnPropertyNames(instance);
         for (const prop of ownProps)
         {
@@ -106,32 +70,7 @@ export class Semantic
             }
         }
 
-        // Traverse prototype chain
-        let currentObj = Object.getPrototypeOf(instance);
-        while (currentObj && currentObj !== Object.prototype)
-        {
-            const props = Object.getOwnPropertyNames(currentObj);
-
-            for (const prop of props)
-            {
-                if (prop !== 'constructor' && !ignoreProps.includes(prop))
-                {
-                    const descriptor = Object.getOwnPropertyDescriptor(currentObj, prop);
-
-                    if (descriptor && !members.has(prop))
-                        members.set(prop, descriptor);
-                }
-            }
-
-            currentObj = Object.getPrototypeOf(currentObj);
-        }
-
         return members;
-    }
-
-    private isParametric(descriptor: PropertyDescriptor)
-    {
-        return descriptor.value instanceof Function && !this.blockInstances.has(descriptor.value);
     }
 }
 
@@ -159,5 +98,33 @@ export class InitialInstructionBlock<T> extends InstructionBlock<T>
     //We declare a virtual member here for type matching purposes.
     declare private _initInstructionBlock: void;
 }
+
+abstract class Instruction
+{
+    static From(        
+        semantic: Semantic,
+        family: typeof InstructionBlock<any>,
+        word: string)
+    {
+        const definition: any = semantic.blockInstances.get(family)![word as keyof InstructionBlock<any>];
+
+        if("whenAccessed" in definition && "whenCalled" in definition)
+            return new HybridInstruction(semantic, family, word);
+        if(definition instanceof Array || (typeof definition === "function" && definition.prototype instanceof InstructionBlock))
+            return new StaticInstruction(semantic, family, word);
+        if(typeof definition === "function")
+            return new ParametricInstruction(semantic, family, word);
+        else
+            throw new Error("Unsupported definition member!");
+    }
+
+    constructor(public readonly semantic: Semantic, public readonly family: typeof InstructionBlock<any>, public readonly word: string) {}
+}
+
+export class StaticInstruction extends Instruction {}
+
+export class HybridInstruction extends Instruction {}
+
+export class ParametricInstruction extends Instruction {}
 
 //#endregion
