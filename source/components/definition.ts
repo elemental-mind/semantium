@@ -29,6 +29,23 @@ export class Semantic
         this.fillCatalogue();
     }
 
+    public getInstruction(permittedBlocks: Array<typeof InstructionBlock<any>>, word: string): Instruction | undefined
+    {
+        const instructionCandidates = this.instructionCatalogue.get(word);
+
+        if (!instructionCandidates)
+            return undefined;
+        else
+        {
+            const instruction = instructionCandidates.find(instruction => permittedBlocks.includes(instruction.family));
+
+            if(!instruction)
+                throw new Error("Use of instruction not permitted in this context.");
+            
+            return instruction;
+        }
+    }
+
     private generateBlockInstances()
     {
         for (const Block of this.definition.blocks)
@@ -99,32 +116,36 @@ export class InitialInstructionBlock<T> extends InstructionBlock<T>
     declare private _initInstructionBlock: void;
 }
 
+//#endregion
+
+//#region Instruction Management
+
 abstract class Instruction
 {
-    static From(        
+    static From(
         semantic: Semantic,
         family: typeof InstructionBlock<any>,
         word: string)
     {
         const definition: any = semantic.blockInstances.get(family)![word as keyof InstructionBlock<any>];
 
-        if("whenAccessed" in definition && "whenCalled" in definition)
+        if ("whenAccessed" in definition && "whenCalled" in definition)
             return new HybridInstruction(semantic, family, word);
-        if(definition instanceof Array || (typeof definition === "function" && definition.prototype instanceof InstructionBlock))
+        if (definition instanceof Array || (typeof definition === "function" && definition.prototype instanceof InstructionBlock))
             return new StaticInstruction(semantic, family, word);
-        if(typeof definition === "function")
+        if (typeof definition === "function")
             return new ParametricInstruction(semantic, family, word);
         else
             throw new Error("Unsupported definition member!");
     }
 
-    constructor(public readonly semantic: Semantic, public readonly family: typeof InstructionBlock<any>, public readonly word: string) {}
+    constructor(public readonly semantic: Semantic, public readonly family: typeof InstructionBlock<any>, public readonly word: string) { }
 }
 
-export class StaticInstruction extends Instruction {}
+export class StaticInstruction extends Instruction { }
 
-export class HybridInstruction extends Instruction {}
+export class HybridInstruction extends Instruction { }
 
-export class ParametricInstruction extends Instruction {}
+export class ParametricInstruction extends Instruction { }
 
 //#endregion
