@@ -23,12 +23,12 @@ export class HybridBlock extends InitialInstructionBlock<Sequence>
         whenAccessed: ComplexMemberBlock,
         whenCalled: () => TransitionBlock
     };
-    
+
     E = {
-        whenAccessed: () => [ComplexMemberBlock],
-        whenCalled: (nmbr: number) => TransitionBlock
+        whenAccessed: () => { this.chain.sequence += "[Modified through hybrid getter handler]"; return ComplexMemberBlock; },
+        whenCalled: (nmbr: number) => {this.chain.sequence += "[Modified through hybrid function handler]"; return TransitionBlock; }
     };
-    
+
     F = {
         whenAccessed: [ComplexMemberBlock, FinalizationBlock],
         whenCalled: () => [TransitionBlock, FinalizationBlock]
@@ -39,7 +39,11 @@ export class ComplexMemberBlock extends InstructionBlock<Sequence>
 {
     foo = (obj: Object) => [ComplexMemberBlock, TransitionBlock];
     bar = [ComplexMemberBlock, TransitionBlock];
-    get baz() { return StaticBlock; }
+    get baz() 
+    {
+        this.chain.sequence += "[Modified through getter handler]";
+        return StaticBlock;
+    }
 }
 
 export class TransitionBlock extends InstructionBlock<Sequence>
