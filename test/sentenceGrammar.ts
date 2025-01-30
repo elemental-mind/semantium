@@ -1,7 +1,5 @@
-import { InitialInstructionBlock, InstructionBlock, Semantic } from "../source/components/definition.js";
-import { InstructionRecorder } from "../source/semantium.js";
+import { InitialInstructionBlock, InstructionBlock, InstructionChain, Semantic } from "../source/semantium.js";
 
-//#region Blocks
 
 export class Start extends InitialInstructionBlock<SentenceDefinition>
 {
@@ -15,7 +13,7 @@ export class AlternativeStart extends InitialInstructionBlock<SentenceDefinition
 
 export class Continuation extends InstructionBlock<SentenceDefinition>
 {
-    followedBy = { whenCalled: (word: string) => { this.record.wordSequence += word; return [Continuation, End]; }, whenAccessed: [OptionalModifier, MultiMatch] };
+    followedBy = { whenCalled: (word: string) => { this.chain.wordSequence += word; return [Continuation, End]; }, whenAccessed: [OptionalModifier, MultiMatch] };
 }
 
 export class End extends InstructionBlock<SentenceDefinition>
@@ -25,7 +23,7 @@ export class End extends InstructionBlock<SentenceDefinition>
 
 export class OptionalModifier extends InstructionBlock<SentenceDefinition>
 {
-    optional = { whenCalled: (word: string) => [MultiMatch, Continuation, End], whenAccessed: () => { this.record.lastElementOptional = true; return MultiMatch; } };
+    optional = { whenCalled: (word: string) => [MultiMatch, Continuation, End], whenAccessed: () => { this.chain.lastElementOptional = true; return MultiMatch; } };
 }
 
 export class MultiMatch extends InstructionBlock<SentenceDefinition>
@@ -38,11 +36,12 @@ export class TerminationModifiers extends InstructionBlock<SentenceDefinition>
     either = (...words: string[]) => SentenceDefinition;
 }
 
-//#endregion
 
-//#region Results
 
-export class SentenceDefinition extends InstructionRecorder<SentenceDefinition>
+
+
+
+export class SentenceDefinition extends InstructionChain<SentenceDefinition>
 {
     lastElementOptional: boolean;
     wordSequence: string;
@@ -55,18 +54,15 @@ export class SentenceDefinition extends InstructionRecorder<SentenceDefinition>
     }
 }
 
-//#endregion
 
-//#region API generation
 
 export const sentenceBuilderConfig = {
     blocks: [Start, Continuation, End, OptionalModifier, MultiMatch, TerminationModifiers],
     result: SentenceDefinition
 };
 
-//#endregion
 
-//#region Example usage
+
 
 function concept()
 {
@@ -92,5 +88,3 @@ function concept()
     console.log(rainyDescription.matches("This month was really sunny."));
     console.log(sunnyDescription.matches("This month was really sunny."));
 }
-
-//#endregion

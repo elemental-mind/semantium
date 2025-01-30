@@ -1,5 +1,4 @@
-import { InstructionBlock, InstructionRecorder } from "../source/semantium.js";
-import { InitialInstructionBlock, Instruction } from "../source/components/definition.js";
+import { InstructionBlock, InitialInstructionBlock, InstructionChain, StaticInstructionUse, ParametricInstructionUse } from "../source/semantium.js";
 
 //#region Language Blocks
 
@@ -42,12 +41,12 @@ export class Sequence
     sequence = "";
 }
 
-export class SequenceRecorder extends InstructionRecorder<Sequence>
+export class SequenceRecorder extends InstructionChain<Sequence>
 {
     sequence = "";
 
-    onAddInstruction(instruction: Instruction, instructionParameters?: any[]): void
+    onInstruction(instructionUse: StaticInstructionUse | ParametricInstructionUse): void
     {
-        this.sequence += instructionParameters ? `.${instruction.word}(${instructionParameters.join(",")})` : `.${instruction.word}`;
+        this.sequence += instructionUse instanceof ParametricInstructionUse ? `.${instructionUse.instruction.word}(${instructionUse.parameters.join(",")})` : `.${instructionUse.instruction.word}`;
     }
 }
