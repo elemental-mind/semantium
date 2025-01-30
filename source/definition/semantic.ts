@@ -41,14 +41,7 @@ export class Semantic
         if (!instructionCandidates)
             return undefined;
         else
-        {
-            const instruction = instructionCandidates.find(instruction => permittedBlocks.includes(instruction.family));
-
-            if (!instruction)
-                throw new Error("Use of instruction not permitted in this context.");
-
-            return instruction;
-        }
+            return instructionCandidates.find(instruction => permittedBlocks.includes(instruction.family));
     }
 
     public getPermittedStaticContinuations(instruction: InstructionDefinition, chain: any)
