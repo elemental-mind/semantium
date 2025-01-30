@@ -1,8 +1,6 @@
 import { InstructionBlock, InitialInstructionBlock, InstructionChain, StaticInstructionUse, ParametricInstructionUse } from "../source/semantium.js";
 
-//#region Language Blocks
-
-export class BaseBlock extends InitialInstructionBlock<Sequence>
+export class StaticBlock extends InitialInstructionBlock<Sequence>
 {
     A = [TransitionBlock, Sequence];
     B = [TransitionBlock, Sequence];
@@ -10,31 +8,54 @@ export class BaseBlock extends InitialInstructionBlock<Sequence>
 
     Q = Sequence;
     M = ComplexMemberBlock;
-
-    X = (nmbr: number) => [TransitionBlock, Sequence];
-    Y = (string: number) => [TransitionBlock, Sequence];
-    Z = (bool: Boolean) => [TransitionBlock, Sequence];
 }
 
-export class MultiInitTestBlock extends InitialInstructionBlock<Sequence>
+export class ParametricBlock extends InitialInstructionBlock<Sequence>
 {
-    DummyMember = TransitionBlock;
+    X = (nmbr: number) => [TransitionBlock, Sequence];
+    Y = (text: string) => [TransitionBlock, Sequence];
+    Z = (toggle: Boolean) => [TransitionBlock, Sequence];
+}
+
+export class HybridBlock extends InitialInstructionBlock<Sequence>
+{
+    D = {
+        whenAccessed: ComplexMemberBlock,
+        whenCalled: () => TransitionBlock
+    };
+    
+    E = {
+        whenAccessed: () => [ComplexMemberBlock],
+        whenCalled: (nmbr: number) => TransitionBlock
+    };
+    
+    F = {
+        whenAccessed: [ComplexMemberBlock, FinalizationBlock],
+        whenCalled: () => [TransitionBlock, FinalizationBlock]
+    };
 }
 
 export class ComplexMemberBlock extends InstructionBlock<Sequence>
 {
-    add = (obj: Object) => [ComplexMemberBlock, TransitionBlock];
-    register = [ComplexMemberBlock, TransitionBlock];
-
-    get toBase() { return BaseBlock; }
+    foo = (obj: Object) => [ComplexMemberBlock, TransitionBlock];
+    bar = [ComplexMemberBlock, TransitionBlock];
+    get baz() { return StaticBlock; }
 }
 
 export class TransitionBlock extends InstructionBlock<Sequence>
 {
-    then = BaseBlock;
+    then = [StaticBlock, ParametricBlock, HybridBlock, FinalizationBlock];
 }
 
-//#endregion
+export class FinalizationBlock extends InstructionBlock<Sequence>
+{
+    result = Sequence;
+    end = Sequence;
+}
+
+
+
+
 
 export class Sequence
 {
