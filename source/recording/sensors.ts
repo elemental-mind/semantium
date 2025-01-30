@@ -34,7 +34,10 @@ class Sensor
 
     protected resolveNextSensor(chain: InstructionChain<any>, permittedContinuations: Array<typeof InstructionBlock<any>>, selectedInstruction: string)
     {
-        const instruction = chain.semantic.findInstructionDefinition(permittedContinuations, selectedInstruction)!;
+        const instruction = chain.semantic.findInstructionDefinition(permittedContinuations, selectedInstruction);
+
+        if (!instruction)
+            throw new Error("Unknown instruction: " + selectedInstruction);
 
         return instruction.getSensor(chain);
     }
@@ -64,6 +67,20 @@ export class RootSensor
         return instructionDefinition.getSensor(chain);
     }
 
+    has(target: any, property: string)
+    {
+        return this.semantic.findInstructionDefinition(this.semantic.initBlocks, property) != undefined;
+    }
+
+    ownKeys(target: any)
+    {
+        const propNames = this.semantic.initBlocks
+            .map(block => this.semantic.blockInstances.get(block)!)
+            .flatMap(blockInstance => Object.keys(blockInstance));
+
+        return propNames;
+    }
+
     private getInstructionChainInstance()
     {
         if (this.instructionChain)
@@ -72,7 +89,6 @@ export class RootSensor
             return this.semantic.generateNewInstructionChain();
     }
 }
-
 export class NextInstructionSensor extends Sensor
 {
     static Create(chain: InstructionChain<any>, permittedContinuations: Array<typeof InstructionBlock<any>>)
@@ -123,7 +139,7 @@ export class ParameterSensor extends Sensor
     apply(target: any, thisArg: any, argArray: any[]): any
     {
         const chain = this.checkMultiAccessAndForkChainIfNecessary();
-        const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new ParametricInstructionUse(this.instruction, argArray))
+        const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new ParametricInstructionUse(this.instruction, argArray));
         return NextInstructionSensor.Create(chain, permittedContinuations);
     }
 }
@@ -147,7 +163,7 @@ export class HybridSensor extends Sensor
     {
         const chain = this.checkMultiAccessAndForkChainIfNecessary();
 
-        const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new StaticInstructionUse(this.instruction))
+        const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new StaticInstructionUse(this.instruction));
 
         return this.resolveNextSensor(chain, permittedContinuations, property);
     }
@@ -156,7 +172,7 @@ export class HybridSensor extends Sensor
     {
         const chain = this.checkMultiAccessAndForkChainIfNecessary();
 
-        const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new ParametricInstructionUse(this.instruction, argArray))
+        const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new ParametricInstructionUse(this.instruction, argArray));
 
         return NextInstructionSensor.Create(chain, permittedContinuations);
     }
