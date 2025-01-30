@@ -29,7 +29,7 @@ export class Semantic
     public generateNewInstructionChain()
     {
         if (this.definition.instructionChain)
-            return new this.definition.instructionChain();
+            return new this.definition.instructionChain(this);
         else
             return new this.definition.result();
     }
