@@ -1,10 +1,10 @@
-import { InitialInstructionBlock, InstructionBlock } from "./definition.js";
-import type { InstructionRecorder } from "./recording.js";
+import { InitialInstructionBlock, InstructionBlock } from "./semantic.js";
+import type { InstructionChain } from "../recording/instructionChain.js";
 
 export interface SemanticDefinition<T extends GenericConstructor<any, any>>
 {
     blocks: ParalessConstructor<InstructionBlock<InstanceType<T>>>[];
-    recorder?: ParalessConstructor<InstructionRecorder<InstanceType<T>>>;
+    instructionChain?: ParalessConstructor<InstructionChain<InstanceType<T>>>;
     result: T;
 }
 

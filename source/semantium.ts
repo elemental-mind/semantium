@@ -1,8 +1,11 @@
 export {
     Semantic,
     InstructionBlock,
-} from "./components/definition.js";
+    InitialInstructionBlock,
+} from "./definition/semantic.js";
 
 export {
-    InstructionRecorder
-} from "./components/recording.js";
+    InstructionChain,
+    StaticInstructionUse,
+    ParametricInstructionUse
+} from "./recording/instructionChain.js";
