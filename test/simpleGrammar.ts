@@ -1,54 +1,88 @@
-import { FusionOf } from "fusium-js";
-import { Beginning, Finishing, InstructionBlock, InstructionRecorder } from "../source/semantium.js";
-import { Instruction, Semantics } from "../source/components/definition.js";
+import { InstructionChainElement } from "../source/recording/instructionChain.ts";
+import { InstructionBlock, InitialInstructionBlock, InstructionChain, StaticInstructionUse, ParametricInstructionUse } from "../source/semantium.ts";
 
-//#region Language Blocks
-
-export class BaseBlock extends FusionOf(Beginning, Finishing, InstructionBlock<Sequence>)
+export class StaticBlock extends InitialInstructionBlock<Sequence>
 {
-    A = TransitionBlock;
-    B = TransitionBlock;
-    C = TransitionBlock;
+    A = [TransitionBlock, Sequence];
+    B = [TransitionBlock, Sequence];
+    C = [TransitionBlock, Sequence];
 
-    M = ModifierBlock;
-
-    X = (nmbr: number) => TransitionBlock;
-    Y = (string: number) => TransitionBlock;
-    Z = (bool: Boolean) => TransitionBlock;
+    Q = Sequence;
+    M = ComplexMemberBlock;
 }
 
-export class AdditionalInitialBlock extends FusionOf(Beginning, InstructionBlock<Sequence>)
+export class ParametricBlock extends InitialInstructionBlock<Sequence>
 {
-    Additional = TransitionBlock;
+    X = (nmbr: number) => [TransitionBlock, Sequence];
+    Y = (text: string) => [TransitionBlock, Sequence];
+    Z = (toggle: Boolean) => [TransitionBlock, Sequence];
 }
 
-export class ModifierBlock extends InstructionBlock<Sequence>
+export class HybridBlock extends InitialInstructionBlock<Sequence>
 {
-    add = (obj: Object) => [ModifierBlock, TransitionBlock];
-    register = [ModifierBlock, TransitionBlock];
+    D = {
+        whenAccessed: TransitionBlock,
+        whenCalled: () => TransitionBlock
+    };
 
-    get toBase() { return BaseBlock; }
+    E = {
+        whenAccessed: () => { this.chain.sequence += "[Modified through hybrid getter handler]"; return TransitionBlock; },
+        whenCalled: (nmbr: number) => { this.chain.sequence += "[Modified through hybrid function handler]"; return TransitionBlock; }
+    };
+
+    F = {
+        whenAccessed: [ComplexMemberBlock, FinalizationBlock],
+        whenCalled: () => [TransitionBlock, FinalizationBlock]
+    };
+}
+
+export class ComplexMemberBlock extends InstructionBlock<Sequence>
+{
+    foo = (obj: Object) => [ComplexMemberBlock, TransitionBlock];
+    bar = [ComplexMemberBlock, TransitionBlock];
+    get baz() 
+    {
+        this.chain.sequence += "[Modified through getter handler]";
+        return StaticBlock;
+    }
 }
 
 export class TransitionBlock extends InstructionBlock<Sequence>
 {
-    then = BaseBlock;
+    then = [StaticBlock, ParametricBlock, HybridBlock, FinalizationBlock];
 }
 
-//#endregion
+export class FinalizationBlock extends InstructionBlock<Sequence>
+{
+    result = Sequence;
+    end = Sequence;
+}
 
-export class Sequence extends InstructionRecorder<Sequence>
+
+
+
+
+export class Sequence
+{
+    sequence = "";
+}
+
+export class SequenceRecorder extends InstructionChain<Sequence>
 {
     sequence = "";
 
-    onAddInstruction(instruction: Instruction, instructionParameters?: any[]): void
+    onInstruction(instructionUse: StaticInstructionUse | ParametricInstructionUse): void
     {
-        this.sequence += instructionParameters ? `.${instruction.word}(${instructionParameters.join(",")})` : `.${instruction.word}`;
+        let instructionString;
+
+        if (instructionUse instanceof ParametricInstructionUse)
+            instructionString = `${instructionUse.instruction.word}(${instructionUse.parameters.join(",")})`;
+        else
+            instructionString = instructionUse.instruction.word;
+
+        if (this.sequence === "")
+            this.sequence = instructionString;
+        else
+            this.sequence = `${this.sequence}.${instructionString}`;
     }
 }
-
-export const dictionary = Semantics.Define([BaseBlock, ModifierBlock, TransitionBlock], Sequence);
-
-export const {
-    A, B, C, M, X, Y, Z
-} = dictionary;

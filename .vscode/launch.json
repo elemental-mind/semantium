@@ -1,6 +1,16 @@
 {
     "configurations": [
         {
+            "name": "Debug Tests",
+            "program": "${workspaceFolder}/test/test.ts",
+            "request": "launch",
+            // "skipFiles": [
+            //     "<node_internals>/**"
+            // ],
+            "runtimeArgs": ["--experimental-transform-types", "--disable-warning=ExperimentalWarning"],
+            "type": "node"
+        },
+        {
             "name": "tsx",
             "type": "node",
             "request": "launch",
@@ -30,5 +40,7 @@
                 "${workspaceFolder}/node_modules/**",
             ],
         }
+
+
     ]
 }
