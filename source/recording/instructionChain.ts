@@ -7,7 +7,7 @@ export abstract class InstructionChain<T>
     public lastElement?: InstructionChainElement;
 
     constructor(
-        public semantic: Semantic
+        public semantic: Semantic<any>
     ) { };
 
     registerInstructionUseAndReturnContinuations(instructionUse: InstructionChainElement)
@@ -16,10 +16,10 @@ export abstract class InstructionChain<T>
 
         let permittedContinuations;
 
-        if(instructionUse instanceof StaticInstructionUse)
+        if (instructionUse instanceof StaticInstructionUse)
             permittedContinuations = this.semantic.getPermittedStaticContinuations(instructionUse.instruction, this);
 
-        if(instructionUse instanceof ParametricInstructionUse)
+        if (instructionUse instanceof ParametricInstructionUse)
             permittedContinuations = this.semantic.getPermittedParametricContinuations(instructionUse.instruction, this, instructionUse.parameters);
 
         return permittedContinuations;
@@ -38,11 +38,13 @@ export abstract class InstructionChain<T>
             this.onInstruction(instruction);
     }
 
-    fork(forkAfterElement: InstructionChainElement): InstructionChain<T>
+    fork(forkAfterElement?: InstructionChainElement): InstructionChain<T>
     {
         let currentElement = this.lastElement;
-        while (currentElement !== forkAfterElement)
-            currentElement = currentElement?.previous;
+        
+        if (forkAfterElement)
+            while (currentElement !== forkAfterElement)
+                currentElement = currentElement?.previous;
 
         const replayArray = [];
         while (currentElement)

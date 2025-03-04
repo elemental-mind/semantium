@@ -2,16 +2,24 @@ import { InstructionDefinition } from "../definition/instructions.js";
 import { InstructionBlock, Semantic } from "../definition/semantic.js";
 import { InstructionChain, InstructionChainElement, StaticInstructionUse, ParametricInstructionUse } from "./instructionChain.js";
 
-class Sensor
+export const SensorSym = Symbol();
+
+export class Sensor
 {
     protected requiresFork = false;
-    protected origin: InstructionChainElement;
+    protected origin?: InstructionChainElement;
 
     protected constructor(
         protected chain: InstructionChain<any>,
     )
     {
-        this.origin = this.chain.lastElement!;
+        this.origin = this.chain.lastElement;
+    }
+
+    public replaceChain(replacementChain: InstructionChain<any>)
+    {
+        this.chain = replacementChain;
+        this.origin = replacementChain.lastElement;
     }
 
     protected checkMultiAccessAndForkChainIfNecessary(): InstructionChain<any>
@@ -19,15 +27,9 @@ class Sensor
         let chain = this.chain;
 
         if (this.requiresFork)
-        {
-            if (this.chain.fork)
-            {
-                chain = this.chain.fork(this.origin);
-            }
-        } else
-        {
+            chain = this.chain.fork(this.origin);
+        else
             this.requiresFork = true;
-        }
 
         return chain;
     }
@@ -43,50 +45,41 @@ class Sensor
     }
 }
 
-export class RootSensor
+export class RootSensor extends Sensor
 {
-    static Create(semantic: Semantic, chain?: any)
+    static Create(semantic: Semantic<any>, chain?: InstructionChain<any>)
     {
         return new Proxy({}, new RootSensor(semantic, chain));
     }
 
     private constructor(
-        public semantic: Semantic,
-        public instructionChain?: any
-    ) { }
-
-    get(base: any, property: string)
+        semantic: Semantic<any>,
+        baseChain?: InstructionChain<any>
+    )
     {
-        const instructionDefinition = this.semantic.findInstructionDefinition(this.semantic.initBlocks, property);
+        super(baseChain ?? semantic.generateNewInstructionChain());
+    }
 
-        if (!instructionDefinition)
-            throw new Error("Instruction is not an initial instruction!");
+    get(base: any, property: string | symbol)
+    {
+        if(property === SensorSym)
+            return this;
 
-        const chain = this.getInstructionChainInstance();
-
-        return instructionDefinition.getSensor(chain);
+        return this.resolveNextSensor(this.chain.fork(), this.chain.semantic.initBlocks, property as string);
     }
 
     has(target: any, property: string)
     {
-        return this.semantic.findInstructionDefinition(this.semantic.initBlocks, property) != undefined;
+        return this.chain.semantic.findInstructionDefinition(this.chain.semantic.initBlocks, property) != undefined;
     }
 
     ownKeys(target: any)
     {
-        const propNames = this.semantic.initBlocks
-            .map(block => this.semantic.blockInstances.get(block)!)
+        const propNames = this.chain.semantic.initBlocks
+            .map(block => this.chain.semantic.blockInstances.get(block)!)
             .flatMap(blockInstance => Object.keys(blockInstance));
 
         return propNames;
-    }
-
-    private getInstructionChainInstance()
-    {
-        if (this.instructionChain)
-            return this.instructionChain;
-        else
-            return this.semantic.generateNewInstructionChain();
     }
 }
 export class NextInstructionSensor extends Sensor
@@ -104,10 +97,13 @@ export class NextInstructionSensor extends Sensor
         super(chain);
     }
 
-    get(object: any, property: string)
+    get(object: any, property: string | symbol)
     {
+        if(property === SensorSym)
+            return this;
+
         const chain = this.checkMultiAccessAndForkChainIfNecessary();
-        return this.resolveNextSensor(chain, this.permittedContinuations, property);
+        return this.resolveNextSensor(chain, this.permittedContinuations, property as string);
     }
 
     apply()
@@ -131,8 +127,11 @@ export class ParameterSensor extends Sensor
         super(chain);
     }
 
-    get()
+    get(target: object, property: string | symbol)
     {
+        if(property === SensorSym)
+            return this;
+
         throw new Error("Parameters expected here!");
     }
 
@@ -159,13 +158,16 @@ export class HybridSensor extends Sensor
         super(chain);
     }
 
-    get(target: any, property: string)
+    get(target: any, property: string | symbol)
     {
+        if(property === SensorSym)
+            return this;
+
         const chain = this.checkMultiAccessAndForkChainIfNecessary();
 
         const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new StaticInstructionUse(this.instruction));
 
-        return this.resolveNextSensor(chain, permittedContinuations, property);
+        return this.resolveNextSensor(chain, permittedContinuations, property as string);
     }
 
     apply(target: any, thisArg: any, argArray: any[]): any

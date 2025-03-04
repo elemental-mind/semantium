@@ -4,7 +4,7 @@ import type { InstructionChain } from "../recording/instructionChain.js";
 export interface SemanticDefinition<T extends GenericConstructor<any, any>>
 {
     blocks: ParalessConstructor<InstructionBlock<InstanceType<T>>>[];
-    instructionChain: {new (semantic: Semantic) : InstructionChain<InstanceType<T>>};
+    instructionChain: {new (semantic: Semantic<any>) : InstructionChain<InstanceType<T>>};
     result: T;
 }
 

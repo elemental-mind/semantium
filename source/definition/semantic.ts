@@ -1,21 +1,29 @@
-import { RootSensor } from "../recording/sensors.js";
-import { SemanticDefinition, EntryPointObject as Dictionary } from "./definitionTyping.js";
+import { NextInstructionSensor, RootSensor, Sensor, SensorSym } from "../recording/sensors.js";
+import { InstructionChain } from "../semantium.js";
+import { SemanticDefinition, EntryPointObject as Dictionary, TransformContinuationArray } from "./definitionTyping.js";
 import { HybridInstructionDefinition, InstructionDefinition } from "./instructions.js";
 
-export class Semantic
+export class Semantic<T extends SemanticDefinition<any>>
 {
     instructionCatalogue = new Map<string, InstructionDefinition[]>();
     blockInstances = new Map<typeof InstructionBlock, InstructionBlock<any>>();
     initBlocks: typeof InstructionBlock<any>[];
-    root: Dictionary<any>;
+    root: Dictionary<T>;
 
     static Define<T extends SemanticDefinition<any>>(definition: T)
     {
         return (new Semantic(definition)).root as Dictionary<T>;
     }
 
+    static SubstituteInstructionChain<T>(instructionSequence: T, chain: InstructionChain<T>)
+    {
+        const proxy = instructionSequence as any;
+        (proxy[SensorSym] as Sensor).replaceChain(chain);
+        return proxy;
+    }
+
     constructor(
-        public definition: SemanticDefinition<any>
+        public definition: T
     )
     {
         this.initBlocks = this.definition.blocks.filter(block => Object.getPrototypeOf(block) === InitialInstructionBlock);
@@ -24,6 +32,16 @@ export class Semantic
         this.fillCatalogue();
 
         this.root = RootSensor.Create(this);
+    }
+
+    public primedWith(chain: InstructionChain<any>)
+    {
+        return RootSensor.Create(this, chain) as Dictionary<T>;
+    }
+
+    public continuationWith<M extends typeof InstructionBlock<any>>(permittedContinuations: Array<M>, chain?: InstructionChain<any>)
+    {
+        return NextInstructionSensor.Create(chain ?? this.generateNewInstructionChain(), permittedContinuations) as TransformContinuationArray<M, T["result"]>;
     }
 
     public generateNewInstructionChain()
