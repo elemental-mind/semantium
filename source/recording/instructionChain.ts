@@ -13,16 +13,7 @@ export abstract class InstructionChain<T>
     registerInstructionUseAndReturnContinuations(instructionUse: InstructionChainElement)
     {
         this.addInstruction(instructionUse);
-
-        let permittedContinuations;
-
-        if (instructionUse instanceof StaticInstructionUse)
-            permittedContinuations = this.semantic.getPermittedStaticContinuations(instructionUse.instruction, this);
-
-        if (instructionUse instanceof ParametricInstructionUse)
-            permittedContinuations = this.semantic.getPermittedParametricContinuations(instructionUse.instruction, this, instructionUse.parameters);
-
-        return permittedContinuations;
+        return this.semantic.triggerInstructionUseHooksAndGetPermittedContinuations(instructionUse, this);
     }
 
     private addInstruction(instruction: InstructionChainElement)
@@ -34,39 +25,42 @@ export abstract class InstructionChain<T>
         else
             this.lastElement = instruction;
 
-        if (this.onInstruction)
             this.onInstruction(instruction);
     }
 
-    fork(forkAfterElement?: InstructionChainElement): InstructionChain<T>
+    fork(forkAfterElement?: InstructionChainElement)
     {
-        let currentElement = this.lastElement;
+        const forkedChain = this.semantic.generateNewInstructionChain() as InstructionChain<T>;
+        forkedChain.replayInstructions(this, forkAfterElement);
+        return forkedChain;
+    }
+
+    onInstruction(instructionUse: StaticInstructionUse | ParametricInstructionUse) { };
+
+    finalizeRecording(): T
+    {
+        return this as unknown as T;
+    };
+
+    protected replayInstructions(copyFrom: InstructionChain<any>, lastIncludedInstructionInReplay?: InstructionChainElement)
+    {
+        let currentElement = copyFrom.lastElement;
         
-        if (forkAfterElement)
-            while (currentElement !== forkAfterElement)
+        if (lastIncludedInstructionInReplay)
+            while (currentElement !== lastIncludedInstructionInReplay)
                 currentElement = currentElement?.previous;
 
-        const replayArray = [];
+        const replayArray : InstructionChainElement[] = [];
         while (currentElement)
         {
             replayArray.push(currentElement);
             currentElement = currentElement.previous;
         }
 
-        const forkedChain = this.semantic.generateNewInstructionChain();
-        let replayElement;
-        while (replayElement = replayArray.pop())
-            forkedChain.addInstruction(replayElement);
-
-        return forkedChain;
+        let replayElement: InstructionChainElement;
+        while (replayElement = replayArray.pop()!)
+            this.registerInstructionUseAndReturnContinuations(replayElement);
     }
-
-    onInstruction?(instructionUse: StaticInstructionUse | ParametricInstructionUse) { };
-
-    finalizeRecording?(): T
-    {
-        return this as unknown as T;
-    };
 }
 
 export abstract class InstructionChainElement

@@ -4,13 +4,20 @@ import { InstructionChain, InstructionChainElement, StaticInstructionUse, Parame
 
 export const SensorSym = Symbol();
 
-export class Sensor
+export class InstructionSensor
 {
-    protected requiresFork = false;
     protected origin?: InstructionChainElement;
+    protected requiresFork = false;
+    protected finalizationResult?: any;
+
+    static FromContinuations(chain: InstructionChain<any>, permittedContinuations: ContinuationSet)
+    {
+        return new Proxy({}, new InstructionSensor(chain, permittedContinuations));
+    }
 
     protected constructor(
         protected chain: InstructionChain<any>,
+        protected permittedContinuations: ContinuationSet
     )
     {
         this.origin = this.chain.lastElement;
@@ -22,30 +29,67 @@ export class Sensor
         this.origin = replacementChain.lastElement;
     }
 
-    protected checkMultiAccessAndForkChainIfNecessary(): InstructionChain<any>
+    protected resolveApplicableChain(): InstructionChain<any>
     {
-        let chain = this.chain;
-
         if (this.requiresFork)
-            chain = this.chain.fork(this.origin);
-        else
-            this.requiresFork = true;
+            return this.chain.fork(this.origin);
 
-        return chain;
+        this.requiresFork = true;
+        return this.chain;
     }
 
-    protected resolveNextSensor(chain: InstructionChain<any>, permittedContinuations: Array<typeof InstructionBlock<any>>, selectedInstruction: string)
+    protected resolveResult()
     {
-        const instruction = chain.semantic.findInstructionDefinition(permittedContinuations, selectedInstruction);
+        this.finalizationResult = this.chain.finalizeRecording();
 
-        if (!instruction)
-            throw new Error("Unknown instruction: " + selectedInstruction);
+        return this.finalizationResult;
+    }
 
-        return instruction.getSensor(chain);
+    get(object: any, property: string | symbol)
+    {
+        if (property === SensorSym)
+            return this;
+
+        const accessResolution = this.permittedContinuations.resolvePropertyAccess(property as string);
+
+        switch (accessResolution.type)
+        {
+            case AccessType.Instruction:
+                const chain = this.resolveApplicableChain();
+                return accessResolution.instruction!.getSensor(chain);
+            case AccessType.Result:
+                return this.resolveResult()[property];
+            default:
+                throw new Error("Unknown instruction: " + <string>property);
+        }
+    }
+
+    apply(target: any, thisArg: any, argArray: any[])
+    {
+        throw new Error("Not expecting parameters at this point.");
+    }
+
+    has(target: any, property: string)
+    {
+        return this.ownKeys().includes(property);
+    }
+
+    ownKeys()
+    {
+        return [...this.permittedContinuations.instructions.keys()];
+    }
+
+    getOwnPropertyDescriptor(target: any, property: string)
+    {
+        const block = this.permittedContinuations.blockTypes
+            .map(blockType => this.chain.semantic.blocks.get(blockType)!.instance)
+            .find((block: any) => block[property] !== undefined);
+
+        return Object.getOwnPropertyDescriptor(block, property);
     }
 }
 
-export class RootSensor extends Sensor
+export class RootSensor extends InstructionSensor
 {
     static Create(semantic: Semantic<any>, chain?: InstructionChain<any>)
     {
@@ -57,125 +101,93 @@ export class RootSensor extends Sensor
         baseChain?: InstructionChain<any>
     )
     {
-        super(baseChain ?? semantic.generateNewInstructionChain());
+        super(baseChain ?? semantic.generateNewInstructionChain(), new ContinuationSet(semantic, semantic.initBlocks));
     }
 
-    get(base: any, property: string | symbol)
+    override get(base: any, property: string | symbol)
     {
-        if(property === SensorSym)
+        if (property === SensorSym)
             return this;
 
-        return this.resolveNextSensor(this.chain.fork(), this.chain.semantic.initBlocks, property as string);
-    }
+        const accessResolution = this.permittedContinuations.resolvePropertyAccess(property as string);
 
-    has(target: any, property: string)
-    {
-        return this.chain.semantic.findInstructionDefinition(this.chain.semantic.initBlocks, property) != undefined;
-    }
-
-    ownKeys(target: any)
-    {
-        const propNames = this.chain.semantic.initBlocks
-            .map(block => this.chain.semantic.blockInstances.get(block)!)
-            .flatMap(blockInstance => Object.keys(blockInstance));
-
-        return propNames;
+        switch (accessResolution.type)
+        {
+            case AccessType.Instruction:
+                const chain = this.chain.fork();
+                return accessResolution.instruction!.getSensor(chain);
+            default:
+                throw new Error("Unknown instruction: " + <string>property);
+        }
     }
 }
-export class NextInstructionSensor extends Sensor
-{
-    static Create(chain: InstructionChain<any>, permittedContinuations: Array<typeof InstructionBlock<any>>)
-    {
-        return new Proxy({}, new NextInstructionSensor(chain, permittedContinuations));
-    }
 
+abstract class ParameterCapturing extends InstructionSensor
+{
     protected constructor(
         chain: InstructionChain<any>,
-        private permittedContinuations: Array<typeof InstructionBlock<any>>,
+        protected instruction: InstructionDefinition
     )
     {
-        super(chain);
+        super(chain, new ContinuationSet(chain.semantic, []));
     }
 
-    get(object: any, property: string | symbol)
+    override apply(target: any, thisArg: any, argArray: any[]): any
     {
-        if(property === SensorSym)
-            return this;
-
-        const chain = this.checkMultiAccessAndForkChainIfNecessary();
-        return this.resolveNextSensor(chain, this.permittedContinuations, property as string);
-    }
-
-    apply()
-    {
-        throw new Error("Not expecting parameters at this point.");
+        const chain = this.resolveApplicableChain();
+        const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new ParametricInstructionUse(this.instruction, argArray));
+        return InstructionSensor.FromContinuations(chain, permittedContinuations);
     }
 }
 
-export class ParameterSensor extends Sensor
+export class ParameterSensor extends ParameterCapturing
 {
     static Create(chain: InstructionChain<any>, instruction: InstructionDefinition)
     {
         return new Proxy(function () { }, new ParameterSensor(chain, instruction));
     }
 
-    private constructor(
-        chain: InstructionChain<any>,
-        private instruction: InstructionDefinition
-    )
+    override get(target: object, property: string | symbol)
     {
-        super(chain);
-    }
-
-    get(target: object, property: string | symbol)
-    {
-        if(property === SensorSym)
+        if (property === SensorSym)
             return this;
 
         throw new Error("Parameters expected here!");
     }
-
-    apply(target: any, thisArg: any, argArray: any[]): any
-    {
-        const chain = this.checkMultiAccessAndForkChainIfNecessary();
-        const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new ParametricInstructionUse(this.instruction, argArray));
-        return NextInstructionSensor.Create(chain, permittedContinuations);
-    }
 }
 
-export class HybridSensor extends Sensor
+export class HybridSensor extends ParameterCapturing
 {
     static Create(chain: InstructionChain<any>, instruction: InstructionDefinition)
     {
         return new Proxy(function () { }, new HybridSensor(chain, instruction));
     }
 
-    private constructor(
-        chain: InstructionChain<any>,
-        private instruction: InstructionDefinition
-    )
+    override get(target: any, property: string | symbol)
     {
-        super(chain);
-    }
-
-    get(target: any, property: string | symbol)
-    {
-        if(property === SensorSym)
+        if (property === SensorSym)
             return this;
 
-        const chain = this.checkMultiAccessAndForkChainIfNecessary();
-
+        //Unlike with the other sensors, when we instantiate a Hybrid Sensor, we do not update the chain upon creation of the sensor, as we
+        //don't know yet which instruction use will follow (either a parametric one or a static one). Thus, we need to do this now.
+        //We are in this trap because API.static.static.hybrid.<TRIGGERINGACCESS> is accessed.
+        //Our sensor sits at API.static.static.hybrid. But the chain is only updated to API.static.static.
+        const chain = this.resolveApplicableChain();
         const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new StaticInstructionUse(this.instruction));
 
-        return this.resolveNextSensor(chain, permittedContinuations, property as string);
-    }
+        //Now the chain is updated to API.static.static.hybrid
 
-    apply(target: any, thisArg: any, argArray: any[]): any
-    {
-        const chain = this.checkMultiAccessAndForkChainIfNecessary();
+        //We still need to actually process the <TRIGGERINGACCESS> access.
+        const accessResolution = permittedContinuations.resolvePropertyAccess(property as string);
 
-        const permittedContinuations = chain.registerInstructionUseAndReturnContinuations(new ParametricInstructionUse(this.instruction, argArray));
-
-        return NextInstructionSensor.Create(chain, permittedContinuations);
+        switch (accessResolution.type)
+        {
+            case AccessType.Instruction:
+                return accessResolution.instruction!.getSensor(chain);
+            case AccessType.Result:
+                return this.resolveResult()[property];
+            default:
+                throw new Error("Unknown instruction: " + <string>property);
+        }
     }
 }
