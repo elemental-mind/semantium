@@ -40,6 +40,7 @@ class MultiMatch extends InstructionBlock<Result>
 
 const configuration = {
     blocks: [Start, Continuation, End, OptionalModifier, MultiMatch],
+    instructionChain: Result,
     result: Result
 };
 
@@ -157,7 +158,7 @@ export class TypeTransformationTests
             result: typeof Result;
         };
 
-        const transformed = {} as EntryPointObject<Config>; // Should only expose Start methods
+        const transformed = {} as EntryPointObject<typeof configuration>; // Should only expose Start methods
         
         transformed.beginsWith;
         //@ts-expect-error
