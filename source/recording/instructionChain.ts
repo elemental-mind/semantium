@@ -1,7 +1,7 @@
 import { InstructionDefinition } from "../definition/instructions.ts";
 import { Semantic } from "../definition/semantic.ts";
 
-export abstract class InstructionChain<T>
+export abstract class InstructionChain<T = any>
 {
     public firstElement?: InstructionChainElement;
     public lastElement?: InstructionChainElement;
@@ -25,7 +25,7 @@ export abstract class InstructionChain<T>
         else
             this.lastElement = instruction;
 
-            this.onInstruction(instruction);
+        this.onInstruction(instruction);
     }
 
     fork(forkAfterElement?: InstructionChainElement)
