@@ -67,6 +67,8 @@ export class Semantic<T extends SemanticDefinition<any>>
         //@ts-expect-error
         instructionBlock.chain = chain;
 
+        instructionBlock.onInstructionUse(instructionUse);
+
         let continuations;
 
         if (instructionUse instanceof StaticInstructionUse)
@@ -74,8 +76,6 @@ export class Semantic<T extends SemanticDefinition<any>>
 
         if (instructionUse instanceof ParametricInstructionUse)
             continuations = this.getParametricContinuations(instructionUse.instruction, instructionUse.parameters, instructionBlock);
-
-        instructionBlock.onInstructionUse(instructionUse);
 
         //@ts-expect-error
         instructionBlock.chain = null;
