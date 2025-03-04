@@ -21,13 +21,13 @@ export class ParametricBlock extends InitialInstructionBlock<Sequence>
 export class HybridBlock extends InitialInstructionBlock<Sequence>
 {
     D = {
-        whenAccessed: ComplexMemberBlock,
+        whenAccessed: TransitionBlock,
         whenCalled: () => TransitionBlock
     };
 
     E = {
-        whenAccessed: () => { this.chain.sequence += "[Modified through hybrid getter handler]"; return ComplexMemberBlock; },
-        whenCalled: (nmbr: number) => {this.chain.sequence += "[Modified through hybrid function handler]"; return TransitionBlock; }
+        whenAccessed: () => { this.chain.sequence += "[Modified through hybrid getter handler]"; return TransitionBlock; },
+        whenCalled: (nmbr: number) => { this.chain.sequence += "[Modified through hybrid function handler]"; return TransitionBlock; }
     };
 
     F = {
@@ -73,6 +73,16 @@ export class SequenceRecorder extends InstructionChain<Sequence>
 
     onInstruction(instructionUse: StaticInstructionUse | ParametricInstructionUse): void
     {
-        this.sequence += instructionUse instanceof ParametricInstructionUse ? `.${instructionUse.instruction.word}(${instructionUse.parameters.join(",")})` : `.${instructionUse.instruction.word}`;
+        let instructionString;
+
+        if (instructionUse instanceof ParametricInstructionUse)
+            instructionString = `${instructionUse.instruction.word}(${instructionUse.parameters.join(",")})`;
+        else
+            instructionString = instructionUse.instruction.word;
+
+        if (this.sequence === "")
+            this.sequence = instructionString;
+        else
+            this.sequence = `${this.sequence}.${instructionString}`;
     }
 }

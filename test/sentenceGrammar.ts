@@ -58,6 +58,7 @@ export class SentenceDefinition extends InstructionChain<SentenceDefinition>
 
 export const sentenceBuilderConfig = {
     blocks: [Start, Continuation, End, OptionalModifier, MultiMatch, TerminationModifiers],
+    instructionChain: SentenceDefinition,
     result: SentenceDefinition
 };
 
@@ -66,7 +67,7 @@ export const sentenceBuilderConfig = {
 
 function concept()
 {
-    const { beginsWith } = Semantic.Define(sentenceBuilderConfig);
+    const { beginsWith } = Semantic.DefineAPI(sentenceBuilderConfig);
 
     const dayDescription =
         beginsWith("I feel")

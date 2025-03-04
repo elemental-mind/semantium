@@ -4,7 +4,6 @@ import { DefinitionTests, SequenceTypingTests } from "../source/definition/seman
 
 const definitionTests = new DefinitionTests();
 definitionTests.shouldHaveAllMembersOfInitialBlockDefined();
-definitionTests.shouldHaveAllMembersOfMultipleInitialBlocksDefined();
 
 const sequenceTypingTests = new SequenceTypingTests();
 sequenceTypingTests.shouldAcceptValidSequences();
@@ -12,20 +11,35 @@ sequenceTypingTests.shouldRejectInvalidSequences();
 sequenceTypingTests.shouldProvideResultMembersOnFinalBlocks();
 
 const initializationTests = new InitializationTests();
-initializationTests.shouldYieldNewInstanceOnEveryCallToInitial();
+initializationTests.shouldYieldNewInstanceOnEachDictionaryAccess();
+initializationTests.shouldForkOnDestructuredWords();
+initializationTests.shouldHaveSubstitutableChain();
+initializationTests.shouldHaveCustomizableStartingChain();
+initializationTests.shouldAllowCustomContinuation();
 
-const recorderHooksTests = new RecorderHooksTests();
-recorderHooksTests.shouldCallOnAddInstruction();
-recorderHooksTests.shouldCallOnAddInstructionWithParameters();
+const instructionChainHookTests = new InstructionChainHookTests();
+instructionChainHookTests.shouldCallOnAddInstruction();
+instructionChainHookTests.shouldSupplyStaticInstructionUse();
+instructionChainHookTests.shouldSupplyParametricInstructionUse();
+instructionChainHookTests.shouldSupplyProperInstructionUseWithHybridInstructions();
 
 const blockHookTests = new BlockHookTests();
 blockHookTests.shouldCallOnUseInstruction();
-blockHookTests.shouldCallOnUseParametric();
 
 const propertyHookTests = new PropertyHookTests();
-propertyHookTests.shouldHandlePropertyGetter();
+propertyHookTests.shouldCallPropertyGetters();
+propertyHookTests.shouldCallParametricHandlers();
+propertyHookTests.shouldCallHybridHandlers();
+
+const forkingTests = new ForkingTests();
+forkingTests.shouldCorrectlyForkBaseAPI();
+forkingTests.shouldCorrectlyForkWhenUsingParametricInstructions();
+forkingTests.shouldCorrectlyForkWhenUsingHybridInstructions();
 
 const finalizationTests = new FinalizationTests();
-finalizationTests.shouldCallFinalizeRecordingOnAccessingResult();
+finalizationTests.shouldFinalizeWhenResultTypeIsReturned();
+finalizationTests.shouldNotFinalizeIfResultTypeIsNotReturned();
+finalizationTests.shouldFinalizeOnStaticAndParametricMembers();
+
 
 console.log("All tests passed!");
