@@ -20,7 +20,7 @@
     "dry-update": "tsc",
     "patch": "tsc && npm version patch && git push && npm publish",
     "release": "tsc && npm version minor && git push && npm publish",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "tsc --noemit && node --experimental-transform-types --disable-warning=ExperimentalWarning test/test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.7.5"
