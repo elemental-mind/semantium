@@ -2,10 +2,10 @@ export {
     Semantic,
     InstructionBlock,
     InitialInstructionBlock,
-} from "./definition/semantic.js";
+} from "./definition/semantic.ts";
 
 export {
     InstructionChain,
     StaticInstructionUse,
     ParametricInstructionUse
-} from "./recording/instructionChain.js";
+} from "./recording/instructionChain.ts";

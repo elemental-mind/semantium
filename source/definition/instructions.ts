@@ -1,6 +1,6 @@
-import { InstructionChain, StaticInstructionUse } from "../recording/instructionChain.js";
-import { HybridSensor, NextInstructionSensor, ParameterSensor } from "../recording/sensors.js";
-import { InstructionBlock, Semantic } from "./semantic.js";
+import { InstructionChain, StaticInstructionUse } from "../recording/instructionChain.ts";
+import { HybridSensor, InstructionSensor, ParameterSensor } from "../recording/sensors.ts";
+import { InstructionBlock, Semantic } from "./semantic.ts";
 
 export abstract class InstructionDefinition
 {

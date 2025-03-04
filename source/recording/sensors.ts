@@ -1,6 +1,6 @@
-import { InstructionDefinition } from "../definition/instructions.js";
-import { InstructionBlock, Semantic } from "../definition/semantic.js";
-import { InstructionChain, InstructionChainElement, StaticInstructionUse, ParametricInstructionUse } from "./instructionChain.js";
+import { InstructionDefinition } from "../definition/instructions.ts";
+import { AccessType, ContinuationSet, Semantic } from "../definition/semantic.ts";
+import { InstructionChain, InstructionChainElement, StaticInstructionUse, ParametricInstructionUse } from "./instructionChain.ts";
 
 export const SensorSym = Symbol();
 

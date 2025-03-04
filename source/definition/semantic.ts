@@ -1,7 +1,7 @@
-import { NextInstructionSensor, RootSensor, Sensor, SensorSym } from "../recording/sensors.js";
-import { InstructionChain } from "../semantium.js";
-import { SemanticDefinition, EntryPointObject as Dictionary, TransformContinuationArray } from "./definitionTyping.js";
-import { HybridInstructionDefinition, InstructionDefinition } from "./instructions.js";
+import { RootSensor, InstructionSensor, SensorSym } from "../recording/sensors.ts";
+import { InstructionChain, ParametricInstructionUse, StaticInstructionUse } from "../semantium.ts";
+import type { SemanticDefinition, EntryPointObject as Dictionary, TransformContinuationArray } from "./definitionTyping.ts";
+import { HybridInstructionDefinition, InstructionDefinition, StaticInstructionDefinition } from "./instructions.ts";
 
 export class Semantic<T extends SemanticDefinition<any>>
 {

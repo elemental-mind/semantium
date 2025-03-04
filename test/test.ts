@@ -1,6 +1,6 @@
 
-import { InitializationTests, RecorderHooksTests, BlockHookTests, PropertyHookTests, FinalizationTests } from "../source/components/recording.spec.js";
-import { DefinitionTests, SequenceTypingTests } from "../source/components/definition.spec.js";
+import { InitializationTests, InstructionChainHookTests, BlockHookTests, PropertyHookTests, ForkingTests, FinalizationTests } from "../source/recording/recording.spec.ts";
+import { DefinitionTests, SequenceTypingTests } from "../source/definition/semantic.spec.ts";
 
 const definitionTests = new DefinitionTests();
 definitionTests.shouldHaveAllMembersOfInitialBlockDefined();

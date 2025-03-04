@@ -1,4 +1,4 @@
-import { EntryPointObject, ParalessConstructor, TransformContinuation, TransformInstructionBlock } from "./definitionTyping.js";
+import { EntryPointObject, ParalessConstructor, TransformContinuation, TransformInstructionBlock } from "./definitionTyping.ts";
 import { InitialInstructionBlock, InstructionBlock } from "./semantic.ts";
 import { InstructionChain } from "../semantium.ts";
 

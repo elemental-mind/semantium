@@ -1,4 +1,5 @@
-import { InstructionBlock, InitialInstructionBlock, InstructionChain, StaticInstructionUse, ParametricInstructionUse } from "../source/semantium.js";
+import { InstructionChainElement } from "../source/recording/instructionChain.ts";
+import { InstructionBlock, InitialInstructionBlock, InstructionChain, StaticInstructionUse, ParametricInstructionUse } from "../source/semantium.ts";
 
 export class StaticBlock extends InitialInstructionBlock<Sequence>
 {

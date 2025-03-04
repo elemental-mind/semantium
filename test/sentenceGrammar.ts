@@ -1,4 +1,4 @@
-import { InitialInstructionBlock, InstructionBlock, InstructionChain, Semantic } from "../source/semantium.js";
+import { InitialInstructionBlock, InstructionBlock, InstructionChain, Semantic } from "../source/semantium.ts";
 
 
 export class Start extends InitialInstructionBlock<SentenceDefinition>

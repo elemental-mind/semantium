@@ -1,5 +1,5 @@
-import { InstructionDefinition } from "../definition/instructions.js";
-import { Semantic } from "../definition/semantic.js";
+import { InstructionDefinition } from "../definition/instructions.ts";
+import { Semantic } from "../definition/semantic.ts";
 
 export abstract class InstructionChain<T>
 {

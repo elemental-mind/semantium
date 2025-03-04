@@ -1,4 +1,4 @@
-import { either, holding, tapping, touch } from "./dictionary.js";
+import { either, holding, tapping, touch } from "./dictionary.ts";
 
 function concept()
 {

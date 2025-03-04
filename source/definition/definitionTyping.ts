@@ -1,5 +1,5 @@
-import { InitialInstructionBlock, InstructionBlock, Semantic } from "./semantic.js";
-import type { InstructionChain } from "../recording/instructionChain.js";
+import { InitialInstructionBlock, InstructionBlock, Semantic } from "./semantic.ts";
+import type { InstructionChain } from "../recording/instructionChain.ts";
 
 export interface SemanticDefinition<T extends GenericConstructor<any, any>>
 {
