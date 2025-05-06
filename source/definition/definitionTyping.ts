@@ -59,3 +59,5 @@ type UnionToIntersection<U> =
 
 type FilterType<Classes extends Array<GenericConstructor>, TargetType> =
     Classes extends Array<infer C extends GenericConstructor> ? C extends C ? InstanceType<C> extends TargetType ? C : never : never : never;
+
+export type TransformGenericInitInstructionBlock<InitInstructionBlock extends InitialInstructionBlock<any>, TypeOfResult extends GenericConstructor> = TransformInstructionBlock<InitialInstructionBlock<any>, TypeOfResult>;
