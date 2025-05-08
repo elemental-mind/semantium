@@ -1,6 +1,6 @@
 import { RootSensor, InstructionSensor, SensorSym } from "../recording/sensors.ts";
 import { InstructionChain, ParametricInstructionUse, StaticInstructionUse } from "../semantium.ts";
-import type { SemanticDefinition, EntryPointObject as Dictionary, TransformContinuationArray } from "./definitionTyping.ts";
+import type { SemanticDefinition, EntryPointObject as Dictionary, TransformContinuationArray } from "./definitionAPI.ts";
 import { HybridInstructionDefinition, InstructionDefinition, StaticInstructionDefinition } from "./instructions.ts";
 
 export class Semantic<T extends SemanticDefinition<any>>
@@ -152,20 +152,6 @@ export class Semantic<T extends SemanticDefinition<any>>
         const baseProperties: PropertyDescriptorMap = this.collectPropertyDescriptors(Object.getPrototypeOf(object));
         return Object.assign(baseProperties, Object.getOwnPropertyDescriptors(object));
     }
-}
-
-export class InstructionBlock<T> 
-{
-    //@ts-ignore
-    protected chain!: T = null;
-
-    onInstructionUse(instructionUseData: StaticInstructionUse | ParametricInstructionUse) { }
-}
-
-export class InitialInstructionBlock<T> extends InstructionBlock<T>
-{
-    //We declare a virtual member here solely for type matching purposes.
-    declare private _initInstructionBlock: void;
 }
 
 export enum AccessType
