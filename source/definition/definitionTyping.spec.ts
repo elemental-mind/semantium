@@ -1,6 +1,12 @@
-import { EntryPointObject, ParalessConstructor, TransformContinuation, TransformInstructionBlock } from "./definitionTyping.ts";
+import { EntryPointObject, ParalessConstructor, TransformContinuation, TransformInstructionBlock, TransformGenericInitInstructionBlock } from "./definitionTyping.ts";
 import { InitialInstructionBlock, InstructionBlock } from "./semantic.ts";
 import { InstructionChain } from "../semantium.ts";
+
+/**
+ * NOTE: These tests are not executed directly.
+ * This file is type-checked by TypeScript compiler (tsc)
+ * and any type error is interpreted as a test failure.
+ */
 
 export class Result<T = string> extends InstructionChain<Result<T>>
 {
@@ -159,10 +165,103 @@ export class TypeTransformationTests
         };
 
         const transformed = {} as EntryPointObject<typeof configuration>; // Should only expose Start methods
-        
+
         transformed.beginsWith;
         //@ts-expect-error
         transformed.optional;
+
+    }
+}
+
+class GenericResult<BaseType> extends InstructionChain<GenericResult<BaseType>>
+{
+    resultProp: BaseType | undefined;
+}
+
+class GenericStart<BaseType> extends InitialInstructionBlock<GenericResult<BaseType>>
+{
+    hybridMember = {
+        whenAccessed: () => GenericContinuation<BaseType, { isHybridAccessed: true }>,
+        whenCalled: <EmbeddedType extends any>(arg: EmbeddedType) => GenericContinuation<BaseType, EmbeddedType>
+    };
+
+    functionMember = <EmbeddedType>(arg: EmbeddedType) => GenericContinuation<BaseType, EmbeddedType>;
+
+    propMember = GenericContinuation<BaseType, { isPropContinuation: true }>;
+}
+
+class GenericContinuation<BaseType, EmbeddedType> extends InstructionBlock<GenericResult<BaseType>>
+{
+    baseType: BaseType;
+    embeddedType: EmbeddedType;
+    continueMethod = (closure: (base: BaseType, embedded: EmbeddedType) => void) => GenericResult<BaseType>;
+}
+
+class TestBaseType
+{
+    foo: string;
+    bar: number;
+    baz: boolean;
+}
+
+class TestEmbeddedType
+{
+    blah: number
+    blub: number
+}
+
+export class GenericSupportTests
+{
+    genericStartGetsTransformed()
+    {
+        const transformed = {} as TransformGenericInitInstructionBlock<GenericStart<TestBaseType>, typeof GenericResult>;
+        transformed.hybridMember; // Should exist
+        transformed.functionMember; // Should exist
+        transformed.propMember; // Should exist
+        //@ts-expect-error - Should not have members from other blocks
+        transformed.nonExistentMember;
+    }
+
+    hybridContinuationGetsTransformed()
+    {
+        const transformed = {} as TransformGenericInitInstructionBlock<GenericStart<TestBaseType>, typeof GenericResult>;
+
+        const testObject = new TestEmbeddedType();
+
+        transformed.hybridMember.embeddedType.blah;
+    }
+
+    functionContinuationGetsTransformed()
+    {
+        const transformed = {} as TransformGenericInitInstructionBlock<GenericStart<TestBaseType>, typeof GenericResult>;
+
+        const testObject = new TestEmbeddedType();
+
+        transformed.functionMember(testObject).baseType.foo;
+    }
+
+    propertyTransformationGetsTransformed()
+    {
+        type TransformedStartBoolean = TransformGenericInitInstructionBlock<GenericStart<boolean>, typeof GenericResult<any>>;
+        const startBoolean = {} as TransformedStartBoolean;
+        const propContinuation = startBoolean.propMember;
+        let baseBoolean: boolean = propContinuation.baseType;
+        let embeddedProp: { isPropContinuation: true; } = propContinuation.embeddedType;
+        propContinuation.continueMethod((base, embedded) =>
+        {
+            let checkBase: boolean = base;
+            let checkEmbedded: { isPropContinuation: true; } = embedded;
+            //@ts-expect-error
+            checkBase = 123;
+            //@ts-expect-error
+            checkEmbedded = { wrong: true };
+        });
+        //@ts-expect-error
+        propContinuation.baseType = 123;
+        //@ts-expect-error
+        propContinuation.embeddedType = { wrong: true };
+        //@ts-expect-error
+        propContinuation.continueMethod((base: number, embedded: any) => { });
 
     }
 }
