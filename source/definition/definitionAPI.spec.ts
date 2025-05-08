@@ -1,6 +1,4 @@
-import { EntryPointObject, ParalessConstructor, TransformContinuation, TransformInstructionBlock, TransformGenericInitInstructionBlock } from "./definitionTyping.ts";
-import { InitialInstructionBlock, InstructionBlock } from "./semantic.ts";
-import { InstructionChain } from "../semantium.ts";
+import { InitialInstructionBlock, InstructionBlock, ContinuesWith, Hybrid, InstructionChain } from "../semantium.ts";
 
 /**
  * NOTE: These tests are not executed directly.
@@ -8,7 +6,9 @@ import { InstructionChain } from "../semantium.ts";
  * and any type error is interpreted as a test failure.
  */
 
-export class Result<T = string> extends InstructionChain<Result<T>>
+//#region Static Tests
+
+class Result<T = string> extends InstructionChain<Result<T>>
 {
     elements: string;
 
@@ -20,159 +20,111 @@ export class Result<T = string> extends InstructionChain<Result<T>>
 
 class Start extends InitialInstructionBlock<Result>
 {
-    beginsWith = { whenCalled: (word: string) => [Continuation, End], whenAccessed: [OptionalModifier, MultiMatch] };
+    beginsWith = Hybrid({
+        accessed: ContinuesWith(OptionalModifier, MultiMatch),
+        called: (word: string) => ContinuesWith(Continuation, End)
+    });
 }
 
 class Continuation extends InstructionBlock<Result>
 {
-    followedBy = { whenCalled: (word: string) => [Continuation, End], whenAccessed: [OptionalModifier, MultiMatch] };
+    followedBy = Hybrid({
+        accessed: ContinuesWith(OptionalModifier, MultiMatch),
+        called: (word: string) => ContinuesWith(Continuation, End)
+    });
 }
 
 class End extends InstructionBlock<Result>
 {
-    end = Result;
-    endsWith = (word: string) => Result;
+    end = ContinuesWith(Result);
+    endsWith = (word: string) => ContinuesWith(Result);
 }
 
 class OptionalModifier extends InstructionBlock<Result>
 {
-    optional = { whenCalled: (word: string) => [MultiMatch, Continuation, End], whenAccessed: MultiMatch };
+    optional = Hybrid({
+        accessed: ContinuesWith(MultiMatch),
+        called: (word: string) => ContinuesWith(MultiMatch, Continuation, End)
+    });
 }
 
 class MultiMatch extends InstructionBlock<Result>
 {
-    either = (...words: string[]) => [Continuation, End];
+    either = (...words: string[]) => ContinuesWith(Continuation, End);
 }
 
-const configuration = {
+const StaticConfiguration = {
     blocks: [Start, Continuation, End, OptionalModifier, MultiMatch],
     instructionChain: Result,
     result: Result
 };
 
-export class MemberTransformations
+export class StaticDefinitionTests
 {
-    StaticWordsGetTransformed()
+    testMemberAccessAndCall()
     {
-        const transformed = {} as TransformInstructionBlock<End, typeof Result>;
-        transformed.end;
+        const start = {} as Start;
+
+        // Test static access
+        start.beginsWith.optional;
+        start.beginsWith.either;
+
+        // Test called access
+        start.beginsWith("word").followedBy;
+        start.beginsWith("word").end;
+
+        // Test chaining
+        start.beginsWith("hello").followedBy("world").followedBy.optional.either("a", "b").end;
+
+        // @ts-expect-error - Should not be able to access members of other blocks directly from Start
+        start.followedBy;
+        // @ts-expect-error - Should not be able to call members of other blocks directly from Start
+        start.followedBy("word");
+
+        const continuation = {} as Continuation;
+
+        // Test static access
+        continuation.followedBy.optional;
+        continuation.followedBy.either;
+
+        // Test called access
+        continuation.followedBy("word").followedBy;
+        continuation.followedBy("word").end;
+
+        // @ts-expect-error - Should not be able to access members of other blocks directly from Continuation
+        continuation.beginsWith;
     }
 
-    ParametricWordsGetTransformed()
+    testResultType()
     {
-        const transformed = {} as TransformInstructionBlock<End, typeof Result>;
-        transformed.endsWith("word");
+        const end = {} as End;
+
+        // Test static Result access
+        const result1 = end.end;
+        result1.elements;
+        result1.matchInSequence([]);
+
+        // Test called Result access
+        const result2 = end.endsWith("word");
+        result2.elements;
+        result2.matchInSequence([]);
+
+        // @ts-expect-error - Should not be able to access instruction block members on Result
+        result1.followedBy;
+        // @ts-expect-error - Should not be able to call instruction block members on Result
+        result2.followedBy("word");
     }
 
-    HybridWordsGetTransformed()
+    testAPIObject()
     {
-        const transformed = {} as TransformInstructionBlock<Start, typeof Result>;
-        transformed.beginsWith;
-        transformed.beginsWith("word");
-        transformed.beginsWith.optional;
-        transformed.beginsWith.optional("word");
-        transformed.beginsWith.either("word", "text");
-        transformed.beginsWith.optional.either("word", "text");
+        
     }
 }
 
-export class TransformContinuationTests
-{
-    ArrayWithoutResultShouldGetTransformed()
-    {
-        const transformed = {} as TransformContinuation<[typeof Continuation, typeof End], typeof Result>;
+//#endregion
 
-        //Continuation transformed
-        transformed.followedBy;
-        transformed.followedBy("word");
-        transformed.followedBy.optional("word");
-        transformed.followedBy.either("word", "text");
-        transformed.followedBy.optional.either("word", "text");
 
-        //End transformed
-        transformed.end;
-        transformed.endsWith;
-    }
-
-    ArrayWithResultShouldGetTransformed()
-    {
-        const transformed = {} as TransformContinuation<[typeof Continuation, typeof Result], typeof Result>;
-
-        //Continuation transformed
-        transformed.followedBy;
-        transformed.followedBy("word");
-        transformed.followedBy.optional("word");
-        transformed.followedBy.either("word", "text");
-        transformed.followedBy.optional.either("word", "text");
-
-        //Result transformed
-        transformed.elements;
-        transformed.matchInSequence([]);
-    }
-
-    ContinuesWithContinuationShouldGetTransformed()
-    {
-        const transformed = {} as TransformContinuation<typeof Continuation, typeof Result>;
-
-        //Continuation transformed
-        transformed.followedBy;
-        transformed.followedBy("word");
-        transformed.followedBy.optional("word");
-        transformed.followedBy.either("word", "text");
-        transformed.followedBy.optional.either("word", "text");
-    }
-
-    ContinuesWithResultShouldGetTransformed()
-    {
-        const transformed = {} as TransformContinuation<typeof Result, typeof Result>;
-
-        //Result transformed
-        transformed.elements;
-        transformed.matchInSequence([]);
-    }
-}
-
-export class EntryPointObjectTests
-{
-    EntryPointObjectShouldGetTransformed()
-    {
-        const transformed = {} as EntryPointObject<typeof configuration>;
-
-        //configuration transformed
-        transformed.beginsWith("hello").followedBy("world").followedBy.optional("blah").endsWith("!");
-    }
-}
-
-export class TypeTransformationTests
-{
-    ArrayToUnionTest()
-    {
-        type BlockArray = [typeof Start, typeof Continuation, typeof MultiMatch];
-        type AsUnion = BlockArray[number]; // Should be Start | Continuation | MultiMatch
-    }
-
-    FilterBeginningTest()
-    {
-        type BlockUnion = typeof Start | typeof Continuation | typeof MultiMatch;
-        type OnlyBeginning = BlockUnion & ParalessConstructor<InitialInstructionBlock<any>>; // Should be just Start
-    }
-
-    FullChainTest()
-    {
-        type Config = {
-            blocks: Array<(typeof Start | typeof Continuation | typeof MultiMatch)>;
-            result: typeof Result;
-        };
-
-        const transformed = {} as EntryPointObject<typeof configuration>; // Should only expose Start methods
-
-        transformed.beginsWith;
-        //@ts-expect-error
-        transformed.optional;
-
-    }
-}
-
+// Test generic instruction blocks
 class GenericResult<BaseType> extends InstructionChain<GenericResult<BaseType>>
 {
     resultProp: BaseType | undefined;
@@ -180,21 +132,21 @@ class GenericResult<BaseType> extends InstructionChain<GenericResult<BaseType>>
 
 class GenericStart<BaseType> extends InitialInstructionBlock<GenericResult<BaseType>>
 {
-    hybridMember = {
-        whenAccessed: () => GenericContinuation<BaseType, { isHybridAccessed: true }>,
-        whenCalled: <EmbeddedType extends any>(arg: EmbeddedType) => GenericContinuation<BaseType, EmbeddedType>
-    };
+    hybridMember = Hybrid({
+        accessed: ContinuesWith(GenericContinuation<BaseType, { isHybridAccessed: true; }>),
+        called: <EmbeddedType extends any>(arg: EmbeddedType) => ContinuesWith(GenericContinuation<BaseType, EmbeddedType>)
+    });
 
-    functionMember = <EmbeddedType>(arg: EmbeddedType) => GenericContinuation<BaseType, EmbeddedType>;
+    functionMember = <EmbeddedType>(arg: EmbeddedType) => ContinuesWith(GenericContinuation<BaseType, EmbeddedType>);
 
-    propMember = GenericContinuation<BaseType, { isPropContinuation: true }>;
+    propMember = ContinuesWith(GenericContinuation<BaseType, { isPropContinuation: true; }>);
 }
 
 class GenericContinuation<BaseType, EmbeddedType> extends InstructionBlock<GenericResult<BaseType>>
 {
     baseType: BaseType;
     embeddedType: EmbeddedType;
-    continueMethod = (closure: (base: BaseType, embedded: EmbeddedType) => void) => GenericResult<BaseType>;
+    continueMethod = (closure: (base: BaseType, embedded: EmbeddedType) => void) => ContinuesWith(GenericResult<BaseType>);
 }
 
 class TestBaseType
@@ -206,62 +158,6 @@ class TestBaseType
 
 class TestEmbeddedType
 {
-    blah: number
-    blub: number
-}
-
-export class GenericSupportTests
-{
-    genericStartGetsTransformed()
-    {
-        const transformed = {} as TransformGenericInitInstructionBlock<GenericStart<TestBaseType>, typeof GenericResult>;
-        transformed.hybridMember; // Should exist
-        transformed.functionMember; // Should exist
-        transformed.propMember; // Should exist
-        //@ts-expect-error - Should not have members from other blocks
-        transformed.nonExistentMember;
-    }
-
-    hybridContinuationGetsTransformed()
-    {
-        const transformed = {} as TransformGenericInitInstructionBlock<GenericStart<TestBaseType>, typeof GenericResult>;
-
-        const testObject = new TestEmbeddedType();
-
-        transformed.hybridMember.embeddedType.blah;
-    }
-
-    functionContinuationGetsTransformed()
-    {
-        const transformed = {} as TransformGenericInitInstructionBlock<GenericStart<TestBaseType>, typeof GenericResult>;
-
-        const testObject = new TestEmbeddedType();
-
-        transformed.functionMember(testObject).baseType.foo;
-    }
-
-    propertyTransformationGetsTransformed()
-    {
-        type TransformedStartBoolean = TransformGenericInitInstructionBlock<GenericStart<boolean>, typeof GenericResult<any>>;
-        const startBoolean = {} as TransformedStartBoolean;
-        const propContinuation = startBoolean.propMember;
-        let baseBoolean: boolean = propContinuation.baseType;
-        let embeddedProp: { isPropContinuation: true; } = propContinuation.embeddedType;
-        propContinuation.continueMethod((base, embedded) =>
-        {
-            let checkBase: boolean = base;
-            let checkEmbedded: { isPropContinuation: true; } = embedded;
-            //@ts-expect-error
-            checkBase = 123;
-            //@ts-expect-error
-            checkEmbedded = { wrong: true };
-        });
-        //@ts-expect-error
-        propContinuation.baseType = 123;
-        //@ts-expect-error
-        propContinuation.embeddedType = { wrong: true };
-        //@ts-expect-error
-        propContinuation.continueMethod((base: number, embedded: any) => { });
-
-    }
+    blah: number;
+    blub: number;
 }

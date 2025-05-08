@@ -111,7 +111,7 @@ export class Semantic<
             return instructionBlockInstance[instruction.word];
 
         //In case we have a HybridInstructionDefinition, we need to differentiate further
-        const instructionMember = instructionBlockInstance[instruction.word].whenAccessed;
+        const instructionMember = instructionBlockInstance[instruction.word].accessed;
 
         //We check for a closure here (we might be given a class constructor, so we need to differentiate with .prototype)
         if (typeof instructionMember === "function" && !instructionMember.prototype)
@@ -123,7 +123,7 @@ export class Semantic<
     private getParametricContinuations(instruction: InstructionDefinition, parameters: any[], instructionBlockInstance: any)
     {
         if (instruction instanceof HybridInstructionDefinition)
-            return instructionBlockInstance[instruction.word].whenCalled.apply(instructionBlockInstance, parameters);
+            return instructionBlockInstance[instruction.word].called.apply(instructionBlockInstance, parameters);
         else
             return instructionBlockInstance[instruction.word].apply(instructionBlockInstance, parameters);
     }

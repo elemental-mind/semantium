@@ -1,15 +1,14 @@
 import assert from "assert";
-import { InitialInstructionBlock, InstructionBlock, Semantic } from "../semantium.ts";
+import { ContinuesWith, Hybrid, InitialInstructionBlock, InstructionBlock, Semantic } from "../semantium.ts";
 import { InstructionChain, InstructionChainElement, ParametricInstructionUse, StaticInstructionUse } from "./instructionChain.ts";
 import { StaticBlock, ParametricBlock, HybridBlock, TransitionBlock, ComplexMemberBlock, FinalizationBlock, Sequence, SequenceRecorder } from "../../test/simpleGrammar.ts";
 
-const testGrammar = {
+const testSemantic = new Semantic({
     blocks: [StaticBlock, ParametricBlock, HybridBlock, ComplexMemberBlock, TransitionBlock, FinalizationBlock],
-    instructionChain: SequenceRecorder,
+    resultBuilder: SequenceRecorder,
     result: Sequence
-};
+});
 
-const testSemantic = new Semantic(testGrammar);
 const testAPI = testSemantic.root;
 
 export class InitializationTests
@@ -144,27 +143,27 @@ export class InstructionChainHookTests
 
         class StaticBlock extends InitialInstructionBlock<any>
         {
-            A = TransitionBlock;
-            B = TransitionBlock;
+            A = ContinuesWith(TransitionBlock);
+            B = ContinuesWith(TransitionBlock);
         }
 
         class ParametricBlock extends InitialInstructionBlock<any>
         {
-            C = () => TransitionBlock;
-            D = (number: number) => TransitionBlock;
+            C = () => ContinuesWith(TransitionBlock);
+            D = (number: number) => ContinuesWith(TransitionBlock);
         }
 
         class HybridBlock extends InitialInstructionBlock<any>
         {
-            E = {
-                whenCalled: (number: number) => TransitionBlock,
-                whenAccessed: TransitionBlock
-            };
+            E = Hybrid({
+                called: (number: number) => ContinuesWith(TransitionBlock),
+                accessed: ContinuesWith(TransitionBlock)
+            });
         }
 
         class TransitionBlock extends InstructionBlock<any>
         {
-            then = [StaticBlock, ParametricBlock, HybridBlock];
+            then = ContinuesWith(StaticBlock, ParametricBlock, HybridBlock);
         }
 
         class TestChain extends InstructionChain<any>
@@ -184,7 +183,7 @@ export class InstructionChainHookTests
 
         const API = Semantic.DefineAPI({
             blocks: [StaticBlock, ParametricBlock, HybridBlock, TransitionBlock],
-            instructionChain: TestChain,
+            resultBuilder: TestChain,
             result: TestChain
         });
 
@@ -200,8 +199,8 @@ export class BlockHookTests
 
         class Base extends InitialInstructionBlock<Sequence>
         {
-            A = TransBlock;
-            B = TransBlock;
+            A = ContinuesWith(TransBlock);
+            B = ContinuesWith(TransBlock);
 
             onInstructionUse(instructionUseData: StaticInstructionUse | ParametricInstructionUse): void
             {
@@ -211,12 +210,12 @@ export class BlockHookTests
 
         class TransBlock extends InstructionBlock<Sequence>
         {
-            then = Base;
+            then = ContinuesWith(Base);
         }
 
         const { A } = Semantic.DefineAPI({
             blocks: [Base, TransBlock],
-            instructionChain: SequenceRecorder,
+            resultBuilder: SequenceRecorder,
             result: Sequence
         });
 
@@ -230,21 +229,21 @@ export class PropertyHookTests
 {
     shouldCallPropertyGetters()
     {
-        class Recorder extends InstructionChain<String>
+        class Recorder extends InstructionChain<Recorder>
         {
             invocations = "";
         }
 
         class Base extends InitialInstructionBlock<Recorder>
         {
-            A = [Base, Recorder];
-            get B() { this.chain.invocations += "B;"; return [Base, Recorder]; }
-            get C() { this.chain.invocations += "C;"; return [Base, Recorder]; }
+            A = ContinuesWith(Base, Recorder);
+            get B() { this.chain.invocations += "B;"; return ContinuesWith(Base, Recorder); }
+            get C() { this.chain.invocations += "C;"; return ContinuesWith(Base, Recorder); }
         }
 
         const { A } = Semantic.DefineAPI({
             blocks: [Base],
-            instructionChain: Recorder,
+            resultBuilder: Recorder,
             result: Recorder
         });
 
@@ -254,21 +253,21 @@ export class PropertyHookTests
 
     shouldCallParametricHandlers()
     {
-        class Recorder extends InstructionChain<String>
+        class Recorder extends InstructionChain<Recorder>
         {
             invocations = "";
         }
 
         class Base extends InitialInstructionBlock<Recorder>
         {
-            A = [Base, Recorder];
-            B = (a: number) => { this.chain.invocations += `B.Call(${a});`; return Base; };
-            C = (a: number) => { this.chain.invocations += `C.Call(${a});`; return Base; };
+            A = ContinuesWith(Base, Recorder);
+            B = (a: number) => { this.chain.invocations += `B.Call(${a});`; return ContinuesWith(Base); };
+            C = (a: number) => { this.chain.invocations += `C.Call(${a});`; return ContinuesWith(Base); };
         }
 
         const { A } = Semantic.DefineAPI({
             blocks: [Base],
-            instructionChain: Recorder,
+            resultBuilder: Recorder,
             result: Recorder
         });
 
@@ -278,29 +277,29 @@ export class PropertyHookTests
 
     shouldCallHybridHandlers()
     {
-        class Recorder extends InstructionChain<String>
+        class Recorder extends InstructionChain<Recorder>
         {
             invocations: string = "";
         }
 
         class Base extends InitialInstructionBlock<Recorder>
         {
-            A = [Base, Recorder];
+            A = ContinuesWith(Base, Recorder);
 
-            B = {
-                whenAccessed: () => { this.chain.invocations += "B.Get;"; return Base; },
-                whenCalled: (a: number) => { this.chain.invocations += `B.Call(${a});`; return Base; }
-            };
+            B = Hybrid({
+                accessed: () => { this.chain.invocations += "B.Get;"; return ContinuesWith(Base); },
+                called: (a: number) => { this.chain.invocations += `B.Call(${a});`; return ContinuesWith(Base); }
+            });
 
-            C = {
-                whenAccessed: () => { this.chain.invocations += "C.Get;"; return Base; },
-                whenCalled: (a: number) => { this.chain.invocations += `C.Call(${a});`; return Base; }
-            };
+            C = Hybrid({
+                accessed: () => { this.chain.invocations += "C.Get;"; return ContinuesWith(Base); },
+                called: (a: number) => { this.chain.invocations += `C.Call(${a});`; return ContinuesWith(Base); }
+            });
         }
 
         const { A } = Semantic.DefineAPI({
             blocks: [Base],
-            instructionChain: Recorder,
+            resultBuilder: Recorder,
             result: Recorder
         });
 
@@ -316,25 +315,24 @@ export class ForkingTests
     {
         class BlockA extends InitialInstructionBlock<Sequence>
         {
-            A = [BlockB, BlockC];
+            A = ContinuesWith(BlockB, BlockC);
         }
 
         class BlockB extends InstructionBlock<Sequence>
         {
-            B = Sequence;
+            B = ContinuesWith(Sequence);
         }
 
         class BlockC extends InstructionBlock<Sequence>
         {
-            C = Sequence;
+            C = ContinuesWith(Sequence);
         }
 
-        const API = Semantic.DefineAPI({
+        const { A } = Semantic.DefineAPI({
             blocks: [BlockA, BlockB, BlockC],
-            instructionChain: SequenceRecorder,
+            resultBuilder: SequenceRecorder,
             result: Sequence
         });
-        const { A } = API;
 
         const chain1 = A.B;
         const chain2 = A.C;
@@ -347,21 +345,19 @@ export class ForkingTests
     {
         class Start extends InitialInstructionBlock<Sequence>
         {
-            start = [Options];
+            start = ContinuesWith(Options);
         }
 
         class Options extends InstructionBlock<Sequence>
         {
-            either = (...options: string[]) => [Sequence, Options];
+            either = (...options: string[]) => ContinuesWith(Sequence, Options);
         }
 
-        const API = Semantic.DefineAPI({
+        const { start } = Semantic.DefineAPI({
             blocks: [Start, Options],
-            instructionChain: SequenceRecorder,
+            resultBuilder: SequenceRecorder,
             result: Sequence
         });
-
-        const { start } = API;
 
         const chain1 = start.either("A", "B").sequence;
         const chain2 = start.either("C", "D").sequence;
@@ -391,24 +387,22 @@ export class ForkingTests
 
         class Start extends InitialInstructionBlock<Recorder>
         {
-            get start() { this.chain.sequence = "start"; return HybridBlock; }
+            get start() { this.chain.sequence = "start"; return ContinuesWith(HybridBlock); }
         }
 
         class HybridBlock extends InstructionBlock<Recorder>
         {
-            H = {
-                whenAccessed: () => { this.chain.sequence += ".H[get]"; return [HybridBlock, Recorder]; },
-                whenCalled: (value: string) => { this.chain.sequence += `.H("${value}")`; return [HybridBlock, Recorder]; }
-            };
+            H = Hybrid({
+                accessed: () => { this.chain.sequence += ".H[get]"; return ContinuesWith(HybridBlock, Recorder); },
+                called: (value: string) => { this.chain.sequence += `.H("${value}")`; return ContinuesWith(HybridBlock, Recorder); }
+            });
         }
 
-        const API = Semantic.DefineAPI({
+        const { start } = Semantic.DefineAPI({
             blocks: [Start, HybridBlock],
-            instructionChain: Recorder,
+            resultBuilder: Recorder,
             result: Recorder
         });
-
-        const { start } = API;
 
         const intermediate1 = start.H;
         const chain1 = intermediate1.sequence;
@@ -456,14 +450,14 @@ export class FinalizationTests
     {
         class Base extends InitialInstructionBlock<FinalizationTracker>
         {
-            A = Base;
-            B = [Base, FinalizationTracker];
-            C = FinalizationTracker;
+            A = ContinuesWith(Base);
+            B = ContinuesWith(Base, FinalizationTracker);
+            C = ContinuesWith(FinalizationTracker);
         }
 
         const API = Semantic.DefineAPI({
             blocks: [Base],
-            instructionChain: FinalizationTracker,
+            resultBuilder: FinalizationTracker,
             result: FinalizationTracker
         });
 
@@ -481,16 +475,16 @@ export class FinalizationTests
     {
         class Base extends InitialInstructionBlock<FinalizationTracker>
         {
-            A = Base;
-            B = Base;
-            C = Base;
+            A = ContinuesWith(Base);
+            B = ContinuesWith(Base);
+            C = ContinuesWith(Base);
 
-            X = FinalizationTracker;
+            X = ContinuesWith(FinalizationTracker);
         }
 
         const API = Semantic.DefineAPI({
             blocks: [Base],
-            instructionChain: FinalizationTracker,
+            resultBuilder: FinalizationTracker,
             result: FinalizationTracker
         });
 
@@ -502,17 +496,17 @@ export class FinalizationTests
     {
         class Base extends InitialInstructionBlock<FinalizationTracker>
         {
-            A = Base;
-            B = {
-                whenAccessed: [Base, FinalizationTracker],
-                whenCalled: () => [Base, FinalizationTracker]
-            };
-            C = () => [Base, FinalizationTracker];
+            A = ContinuesWith(Base);
+            B = Hybrid({
+                accessed: ContinuesWith(Base, FinalizationTracker),
+                called: () => ContinuesWith(Base, FinalizationTracker)
+            });
+            C = () => ContinuesWith(Base, FinalizationTracker);
         }
 
         const API = Semantic.DefineAPI({
             blocks: [Base],
-            instructionChain: FinalizationTracker,
+            resultBuilder: FinalizationTracker,
             result: FinalizationTracker
         });
 

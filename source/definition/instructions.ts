@@ -13,7 +13,7 @@ export abstract class InstructionDefinition
     {
         const definition: any = blockInstance[word as keyof InstructionBlock<any>];
 
-        if ("whenAccessed" in definition && "whenCalled" in definition)
+        if ("acessed" in definition && "called" in definition)
             return new HybridInstructionDefinition(semantic, family, word);
         if (definition instanceof Array || (typeof definition === "function" && definition.prototype instanceof InstructionBlock) || definition === semantic.definition.result)
             return new StaticInstructionDefinition(semantic, family, word);
