@@ -91,13 +91,13 @@ export class InstructionSensor
 
 export class RootSensor extends InstructionSensor
 {
-    static Create(semantic: Semantic<any>, chain?: InstructionChain<any>)
+    static Create(semantic: Semantic<any, any, any>, chain?: InstructionChain<any>)
     {
         return new Proxy({}, new RootSensor(semantic, chain));
     }
 
     private constructor(
-        semantic: Semantic<any>,
+        semantic: Semantic<any, any, any>,
         baseChain?: InstructionChain<any>
     )
     {

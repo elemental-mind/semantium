@@ -1,11 +1,12 @@
 import { InstructionChain, StaticInstructionUse } from "../recording/instructionChain.ts";
 import { HybridSensor, InstructionSensor, ParameterSensor } from "../recording/sensors.ts";
-import { InstructionBlock, Semantic } from "./semantic.ts";
+import { InstructionBlock } from "./definitionAPI.ts";
+import type { Semantic } from "./semantic.ts";
 
 export abstract class InstructionDefinition
 {
     static From(
-        semantic: Semantic<any>,
+        semantic: Semantic<any, any, any>,
         family: typeof InstructionBlock<any>,
         blockInstance: InstructionBlock<any>,
         word: string)
@@ -22,7 +23,7 @@ export abstract class InstructionDefinition
             throw new Error("Unsupported definition member!");
     }
 
-    constructor(public readonly semantic: Semantic<any>, public readonly family: typeof InstructionBlock<any>, public readonly word: string) { }
+    constructor(public readonly semantic: Semantic<any, any, any>, public readonly family: typeof InstructionBlock<any>, public readonly word: string) { }
 
     abstract getSensor(chain: InstructionChain<any>): any;
 }

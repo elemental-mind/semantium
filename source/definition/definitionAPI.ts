@@ -2,8 +2,10 @@ import type { ParametricInstructionUse, StaticInstructionUse } from "../recordin
 
 type AnyConstructor = new (...args: any[]) => any;
 type ConstructorTuple = ReadonlyArray<AnyConstructor>;
-type MapConstructorsToInstances<T extends ConstructorTuple> = { [K in keyof T]: T[K] extends AnyConstructor ? InstanceType<T[K]> : never; };
+type MapConstructorsToInstances<T extends ConstructorTuple> = { -readonly [K in keyof T]: T[K] extends AnyConstructor ? InstanceType<T[K]> : never; };
 type Intersect<Tuple> = Tuple extends [infer Head, ...infer Tail] ? Head & Intersect<Tail> : unknown;
+type TypeOrReturnType<T> = T extends () => infer R ? R : T;
+export type FluentObject<Tuple extends ConstructorTuple> = Intersect<MapConstructorsToInstances<Tuple>>;
 
 type HybridDefinition<AccessedType, CalledType extends Function> = {
     accessed: AccessedType,
@@ -31,5 +33,5 @@ export function ContinuesWith<T extends ConstructorTuple>(...constructors: T)
 
 export function Hybrid<AccessedType, CalledType extends Function>(definition: HybridDefinition<AccessedType, CalledType>)
 {
-    return definition as unknown as AccessedType & CalledType;
+    return definition as unknown as TypeOrReturnType<AccessedType> & CalledType;
 }
