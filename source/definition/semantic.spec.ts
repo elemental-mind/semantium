@@ -2,13 +2,11 @@ import assert from "assert";
 import { StaticBlock, ParametricBlock, HybridBlock, TransitionBlock, ComplexMemberBlock, FinalizationBlock, Sequence, SequenceRecorder } from "../../test/simpleGrammar.ts";
 import { Semantic } from "../semantium.ts";
 
-const testSemantic = Semantic.DefineAPI(
-    {
-        blocks: [StaticBlock, ParametricBlock, HybridBlock, TransitionBlock, ComplexMemberBlock, FinalizationBlock],
-        instructionChain: SequenceRecorder,
-        result: Sequence
-    }
-);
+const testSemantic = Semantic.DefineAPI({
+    blocks: [StaticBlock, ParametricBlock, HybridBlock, TransitionBlock, ComplexMemberBlock, FinalizationBlock],
+    resultBuilder: SequenceRecorder,
+    result: Sequence
+});
 
 const { A, B, M } = testSemantic;
 

@@ -1,17 +1,42 @@
 import { RootSensor, InstructionSensor, SensorSym } from "../recording/sensors.ts";
 import { InstructionChain, ParametricInstructionUse, StaticInstructionUse } from "../semantium.ts";
-import type { SemanticDefinition, EntryPointObject as Dictionary, TransformContinuationArray } from "./definitionTyping.ts";
+import { type InstructionBlock, InitialInstructionBlock, type FluentObject } from "./definitionAPI.ts";
 import { HybridInstructionDefinition, InstructionDefinition, StaticInstructionDefinition } from "./instructions.ts";
 
-export class Semantic<T extends SemanticDefinition<any>>
+export interface SemanticDefinition<
+    Blocks extends ReadonlyArray<typeof InstructionBlock<any> | typeof InitialInstructionBlock<any>>,
+    ResultBuilder extends (new (semantic: Semantic<Blocks, ResultBuilder, Result>) => InstructionChain<InstanceType<Result>>),
+    Result extends (new () => object) | ResultBuilder>
+{
+    blocks: Blocks;
+    resultBuilder: ResultBuilder;
+    result: Result;
+}
+
+export type FluentEntryObject<Blocks> =
+    Blocks extends readonly [infer Head, ...infer Tail] ?
+        Head extends new (...args: any) => InitialInstructionBlock<any> ?
+        InstanceType<Head> & FluentEntryObject<Tail>
+    : FluentEntryObject<Tail>
+    : {};
+
+export class Semantic<
+    const Blocks extends ReadonlyArray<typeof InstructionBlock<any> | typeof InitialInstructionBlock<any>>,
+    ResultBuilder extends (new (semantic: Semantic<Blocks, ResultBuilder, Result>) => InstructionChain<InstanceType<Result>>),
+    Result extends (new () => object) | ResultBuilder>
 {
     blocks = new Map<typeof InstructionBlock, { instance: InstructionBlock<any>, instructionMap: Map<string, InstructionDefinition>, instructions: Array<InstructionDefinition>; }>();
     initBlocks: typeof InstructionBlock<any>[];
-    root: Dictionary<T>;
+    root: FluentEntryObject<Blocks>;
 
-    static DefineAPI<T extends SemanticDefinition<any>>(definition: T)
+    static DefineAPI<
+        const Blocks extends ReadonlyArray<typeof InstructionBlock<any> | typeof InitialInstructionBlock<any>>,
+        ResultBuilder extends (new (semantic: Semantic<Blocks, ResultBuilder, Result>) => InstructionChain<InstanceType<Result>>),
+        Result extends (new () => object) | ResultBuilder>
+        (definition: SemanticDefinition<Blocks, ResultBuilder, Result>)
     {
-        return (new Semantic(definition)).root as Dictionary<T>;
+        const semantic = new Semantic(definition);
+        return semantic.root;
     }
 
     static SubstituteInstructionChain<T>(instructionSequence: T, chain: InstructionChain<any>)
@@ -22,39 +47,36 @@ export class Semantic<T extends SemanticDefinition<any>>
     }
 
     constructor(
-        public definition: T
+        public definition: SemanticDefinition<Blocks, ResultBuilder, Result>
     )
     {
-        this.initBlocks = this.definition.blocks.filter(block => Object.getPrototypeOf(block) === InitialInstructionBlock);
+        this.initBlocks = this.definition.blocks.filter((block: typeof InstructionBlock<any> | typeof InitialInstructionBlock<any>) => Object.getPrototypeOf(block) === InitialInstructionBlock);
 
         this.initializeBlocks();
 
         this.root = RootSensor.Create(this);
     }
 
-    public primedWith(chain: InstructionChain<any>)
+    public primedWith(chain: InstanceType<ResultBuilder>)
     {
-        return RootSensor.Create(this, chain) as Dictionary<T>;
+        return RootSensor.Create(this, chain) as FluentEntryObject<Blocks>;
     }
 
-    public continuationWith<M extends typeof InstructionBlock<any>>(permittedContinuations: Array<M>, chain?: InstructionChain<any>)
+    public continuationWith<const ContinuationBlocks extends ReadonlyArray<typeof InstructionBlock<any>>>(permittedContinuations: ContinuationBlocks, chain?: InstructionChain<any>)
     {
-        return InstructionSensor.FromContinuations(chain ?? this.generateNewInstructionChain(), new ContinuationSet(this, permittedContinuations)) as TransformContinuationArray<M, T["result"]>;
+        return InstructionSensor.FromContinuations(chain ?? this.generateNewInstructionChain(), new ContinuationSet(this, permittedContinuations)) as FluentObject<ContinuationBlocks>;
     }
 
-    public generateNewInstructionChain(): InstanceType<T["instructionChain"]>
+    public generateNewInstructionChain(): InstanceType<ResultBuilder>
     {
-        if (this.definition.instructionChain)
-            return new this.definition.instructionChain(this) as InstanceType<T["instructionChain"]>;
-        else
-            return new this.definition.result();
+        return new this.definition.resultBuilder(this) as InstanceType<ResultBuilder>;
     }
 
     public triggerInstructionUseHooksAndGetPermittedContinuations(instructionUse: StaticInstructionUse | ParametricInstructionUse, chain: any)
     {
         const continuations = this.applyInstructionUse(instructionUse, chain);
 
-        return new ContinuationSet( this, continuations instanceof Array ? continuations : [continuations]);
+        return new ContinuationSet(this, continuations instanceof Array ? continuations : [continuations]);
     }
 
     public applyInstructionUse(instructionUse: StaticInstructionUse | ParametricInstructionUse, chain: any)
@@ -89,7 +111,7 @@ export class Semantic<T extends SemanticDefinition<any>>
             return instructionBlockInstance[instruction.word];
 
         //In case we have a HybridInstructionDefinition, we need to differentiate further
-        const instructionMember = instructionBlockInstance[instruction.word].whenAccessed;
+        const instructionMember = instructionBlockInstance[instruction.word].accessed;
 
         //We check for a closure here (we might be given a class constructor, so we need to differentiate with .prototype)
         if (typeof instructionMember === "function" && !instructionMember.prototype)
@@ -101,7 +123,7 @@ export class Semantic<T extends SemanticDefinition<any>>
     private getParametricContinuations(instruction: InstructionDefinition, parameters: any[], instructionBlockInstance: any)
     {
         if (instruction instanceof HybridInstructionDefinition)
-            return instructionBlockInstance[instruction.word].whenCalled.apply(instructionBlockInstance, parameters);
+            return instructionBlockInstance[instruction.word].called.apply(instructionBlockInstance, parameters);
         else
             return instructionBlockInstance[instruction.word].apply(instructionBlockInstance, parameters);
     }
@@ -154,20 +176,6 @@ export class Semantic<T extends SemanticDefinition<any>>
     }
 }
 
-export class InstructionBlock<T> 
-{
-    //@ts-ignore
-    protected chain!: T = null;
-
-    onInstructionUse(instructionUseData: StaticInstructionUse | ParametricInstructionUse) { }
-}
-
-export class InitialInstructionBlock<T> extends InstructionBlock<T>
-{
-    //We declare a virtual member here solely for type matching purposes.
-    declare private _initInstructionBlock: void;
-}
-
 export enum AccessType
 {
     Result,
@@ -177,11 +185,11 @@ export enum AccessType
 
 export class ContinuationSet
 {
-    public readonly blockTypes: Array<typeof InstructionBlock>;
+    public readonly blockTypes: ReadonlyArray<typeof InstructionBlock>;
     public readonly instructions = new Map<string, InstructionDefinition>();
     public readonly allowsResultAccess: boolean;
 
-    constructor(semantic: Semantic<any>, continuations: Array<any>)
+    constructor(semantic: Semantic<any, any, any>, continuations: ReadonlyArray<typeof InstructionBlock>)
     {
         this.blockTypes = continuations.filter(continuation => continuation !== semantic.definition.result);
 

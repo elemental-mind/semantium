@@ -1,8 +1,13 @@
 export {
     Semantic,
-    InstructionBlock,
-    InitialInstructionBlock,
 } from "./definition/semantic.ts";
+
+export {
+    ContinuesWith,
+    Hybrid,
+    InitialInstructionBlock,
+    InstructionBlock
+} from "./definition/definitionAPI.ts";
 
 export {
     InstructionChain,

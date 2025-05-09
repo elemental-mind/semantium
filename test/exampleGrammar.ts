@@ -1,48 +1,48 @@
 // Necessary imports
-import { InitialInstructionBlock, InstructionBlock, InstructionChain, ParametricInstructionUse, Semantic, StaticInstructionUse } from "./../source/semantium.ts";
+import { ContinuesWith, InitialInstructionBlock, InstructionBlock, InstructionChain, ParametricInstructionUse, Semantic, StaticInstructionUse } from "./../source/semantium.ts";
 
 // Define the instruction blocks
 class Subject extends InitialInstructionBlock<Sequence>
 {
-    John = Verb;
-    Bob = Verb;
-    Cathy = Verb;
+    John = ContinuesWith(Verb);
+    Bob = ContinuesWith(Verb);
+    Cathy = ContinuesWith(Verb);
 }
 
 class Verb extends InstructionBlock<Sequence>
 {
-    likes = Object;
-    does = Object;
-    has = [Possessions, Quantifiers];
+    likes = ContinuesWith(Object);
+    does = ContinuesWith(Object);
+    has = ContinuesWith(Possessions, Quantifiers);
 }
 
 class Object extends InstructionBlock<Sequence>
 {
-    art = [Conjunctor, Terminator];
-    sports = [Conjunctor, Terminator];
+    art = ContinuesWith(Conjunctor, Terminator);
+    sports = ContinuesWith(Conjunctor, Terminator);
 }
 
 class Conjunctor extends InstructionBlock<Sequence>
 {
-    and = Verb;
+    and = ContinuesWith(Verb);
 }
 
 class Possessions extends InstructionBlock<Sequence>
 {
-    apples = [Conjunctor, Terminator];
-    cars = [Conjunctor, Terminator];
+    apples = ContinuesWith(Conjunctor, Terminator);
+    cars = ContinuesWith(Conjunctor, Terminator);
 }
 
 class Quantifiers extends InstructionBlock<Sequence>
 {
-    atLeast = (count: number) => Possessions;
-    notMoreThan = (count: number) => Possessions;
+    atLeast = (count: number) => ContinuesWith(Possessions);
+    notMoreThan = (count: number) => ContinuesWith(Possessions);
 }
 
 class Terminator extends InstructionBlock<Sequence>
 {
-    fullStop = [Subject, Sequence];
-    exclamationMark = [Subject, Sequence];
+    fullStop = ContinuesWith(Subject, Sequence);
+    exclamationMark = ContinuesWith(Subject, Sequence);
 
     onInstruction(instructionUse: StaticInstructionUse | ParametricInstructionUse)
     {
@@ -88,14 +88,14 @@ class Sequence extends InstructionChain<Sequence>
 }
 
 // Create the dictionary
-const { John, Bob, Cathy } = Semantic.DefineAPI({
+const grammarAPI = Semantic.DefineAPI({
     blocks: [Subject, Verb, Object, Conjunctor, Possessions, Quantifiers, Terminator],
-    instructionChain: Sequence,
+    resultBuilder: Sequence,
     result: Sequence
 });
 
 // Use the grammar
-const artsy = John.likes.art.fullStop;
-const sporty = Cathy.does.sports.exclamationMark;
-const multi = Cathy.does.sports.fullStop.Bob.likes.sports.fullStop;
-const possession = John.has.atLeast(5).apples.and.does.sports.fullStop;
+const artsy = grammarAPI.John.likes.art.fullStop;
+const sporty = grammarAPI.Cathy.does.sports.exclamationMark;
+const multi = grammarAPI.Cathy.does.sports.fullStop.Bob.likes.sports.fullStop;
+const possession = grammarAPI.John.has.atLeast(5).apples.and.does.sports.fullStop;

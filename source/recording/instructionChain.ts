@@ -1,13 +1,13 @@
 import { InstructionDefinition } from "../definition/instructions.ts";
 import { Semantic } from "../definition/semantic.ts";
 
-export abstract class InstructionChain<T = any>
+export abstract class InstructionChain<Result>
 {
     public firstElement?: InstructionChainElement;
     public lastElement?: InstructionChainElement;
 
     constructor(
-        public semantic: Semantic<any>
+        public semantic: Semantic<any, any, any>
     ) { };
 
     registerInstructionUseAndReturnContinuations(instructionUse: InstructionChainElement)
@@ -30,27 +30,27 @@ export abstract class InstructionChain<T = any>
 
     fork(forkAfterElement?: InstructionChainElement)
     {
-        const forkedChain = this.semantic.generateNewInstructionChain() as InstructionChain<T>;
+        const forkedChain = this.semantic.generateNewInstructionChain() as InstructionChain<Result>;
         forkedChain.replayInstructions(this, forkAfterElement);
         return forkedChain;
     }
 
     onInstruction(instructionUse: StaticInstructionUse | ParametricInstructionUse) { };
 
-    finalizeRecording(): T
+    finalizeRecording(): Result
     {
-        return this as unknown as T;
+        return this as unknown as Result;
     };
 
     protected replayInstructions(copyFrom: InstructionChain<any>, lastIncludedInstructionInReplay?: InstructionChainElement)
     {
         let currentElement = copyFrom.lastElement;
-        
+
         if (lastIncludedInstructionInReplay)
             while (currentElement !== lastIncludedInstructionInReplay)
                 currentElement = currentElement?.previous;
 
-        const replayArray : InstructionChainElement[] = [];
+        const replayArray: InstructionChainElement[] = [];
         while (currentElement)
         {
             replayArray.push(currentElement);
