@@ -1,4 +1,3 @@
-
 import { InitializationTests, InstructionChainHookTests, BlockHookTests, PropertyHookTests, ForkingTests, FinalizationTests } from "../source/recording/recording.spec.ts";
 import { DefinitionTests, SequenceTypingTests } from "../source/definition/semantic.spec.ts";
 
