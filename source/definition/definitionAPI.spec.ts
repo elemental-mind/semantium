@@ -1,4 +1,5 @@
-import { InitialInstructionBlock, InstructionBlock, ContinuesWith, Hybrid, InstructionChain } from "../semantium.ts";
+import { sequenceAPI } from "../../test/sequenceGrammar.ts";
+import { genericAPI, ModifyTarget } from "../../test/genericGrammar.ts";
 
 /**
  * NOTE: These tests are not executed directly.
@@ -6,82 +7,29 @@ import { InitialInstructionBlock, InstructionBlock, ContinuesWith, Hybrid, Instr
  * and any type error is interpreted as a test failure.
  */
 
-//#region Static Tests
-
-class Result<T = string> extends InstructionChain<Result<T>>
-{
-    elements: string;
-
-    matchInSequence(sequence: T[])
-    {
-        //Logic to detect when this sentence occurs
-    }
-}
-
-class Start extends InitialInstructionBlock<Result>
-{
-    beginsWith = Hybrid({
-        accessed: ContinuesWith(OptionalModifier, MultiMatch),
-        called: (word: string) => ContinuesWith(Continuation, End)
-    });
-}
-
-class Continuation extends InstructionBlock<Result>
-{
-    followedBy = Hybrid({
-        accessed: ContinuesWith(OptionalModifier, MultiMatch),
-        called: (word: string) => ContinuesWith(Continuation, End)
-    });
-}
-
-class End extends InstructionBlock<Result>
-{
-    end = ContinuesWith(Result);
-    endsWith = (word: string) => ContinuesWith(Result);
-}
-
-class OptionalModifier extends InstructionBlock<Result>
-{
-    optional = Hybrid({
-        accessed: ContinuesWith(MultiMatch),
-        called: (word: string) => ContinuesWith(MultiMatch, Continuation, End)
-    });
-}
-
-class MultiMatch extends InstructionBlock<Result>
-{
-    either = (...words: string[]) => ContinuesWith(Continuation, End);
-}
-
-const StaticConfiguration = {
-    blocks: [Start, Continuation, End, OptionalModifier, MultiMatch],
-    instructionChain: Result,
-    result: Result
-};
-
 export class StaticDefinitionTests
 {
     testMemberAccessAndCall()
     {
-        const start = {} as Start;
-
         // Test static access
-        start.beginsWith.optional;
-        start.beginsWith.either;
+        sequenceAPI.beginsWith.optional;
+        sequenceAPI.beginsWith.either;
 
         // Test called access
-        start.beginsWith("word").followedBy;
-        start.beginsWith("word").end;
+        sequenceAPI.beginsWith("word").followedBy;
+        sequenceAPI.beginsWith("word").end;
 
         // Test chaining
-        start.beginsWith("hello").followedBy("world").followedBy.optional.either("a", "b").end;
+        sequenceAPI.beginsWith("hello").followedBy("world").followedBy.optional.either("a", "b").end;
 
         // @ts-expect-error - Should not be able to access members of other blocks directly from Start
-        start.followedBy;
+        sequenceAPI.followedBy;
         // @ts-expect-error - Should not be able to call members of other blocks directly from Start
-        start.followedBy("word");
+        sequenceAPI.followedBy("word");
+        // @ts-expect-error - Should not be able to access 'end' directly from Start block
+        sequenceAPI.end;
 
-        const continuation = {} as Continuation;
+        const continuation = sequenceAPI.beginsWith("blah");
 
         // Test static access
         continuation.followedBy.optional;
@@ -93,19 +41,21 @@ export class StaticDefinitionTests
 
         // @ts-expect-error - Should not be able to access members of other blocks directly from Continuation
         continuation.beginsWith;
+        // @ts-expect-error - Should not be able to call 'beginsWith' from a continuation
+        continuation.beginsWith("fail");
+        // @ts-expect-error - Accessing a property that doesn't exist after a chain
+        sequenceAPI.beginsWith("word").nonExistentPropertyAfterChain;
     }
 
     testResultType()
     {
-        const end = {} as End;
-
         // Test static Result access
-        const result1 = end.end;
+        const result1 = sequenceAPI.beginsWith("word").end;
         result1.elements;
         result1.matchInSequence([]);
 
         // Test called Result access
-        const result2 = end.endsWith("word");
+        const result2 = sequenceAPI.beginsWith("word").endsWith("word");
         result2.elements;
         result2.matchInSequence([]);
 
@@ -113,51 +63,103 @@ export class StaticDefinitionTests
         result1.followedBy;
         // @ts-expect-error - Should not be able to call instruction block members on Result
         result2.followedBy("word");
+        // @ts-expect-error - Result should not have 'beginsWith'
+        result1.beginsWith("again");
+        // @ts-expect-error - Result should not have 'endsWith' (it's already a result)
+        result2.endsWith("again");
     }
+}
 
-    testAPIObject()
+export class GenericTests
+{
+    testClassTransforms()
     {
-        
+        const modifiedClass = genericAPI.transformClass(ModifyTarget)
+            .add("directProperty").withValue(1) // type: number
+            .add.property("indirectProperty", { prop: 123 }) // type: { prop: number }
+            .add.property.named("fluentProperty").setTo("value") // type: string
+            .add("directMethod").withFunctionBody("return null") // type: () => null
+            .add.method("indirectMethod", "", "return null") // type: () => null
+            .add.method.named("fluentMethod").withParameters("").withBody("return null") // type: () => null
+            .finalize.modificationResult;
+
+        modifiedClass.directProperty.toFixed();
+        modifiedClass.indirectProperty.prop;
+        modifiedClass.fluentProperty.charAt(0);
+        modifiedClass.directMethod();
+        modifiedClass.indirectMethod();
+        modifiedClass.fluentMethod();
+
+        // Negative tests for modifiedClass
+        // @ts-expect-error - Cannot access non-existent property
+        modifiedClass.nonExistentProperty;
+        // @ts-expect-error - Calling a number property as a function
+        modifiedClass.directProperty();
+        // @ts-expect-error - Using string method on a number property
+        modifiedClass.directProperty.charAt(0);
+        // @ts-expect-error - Accessing a sub-property that doesn't exist
+        modifiedClass.indirectProperty.nonExistentSubProp;
+
+
+        const builderOnlyFinalize = genericAPI.transformClass(ModifyTarget).finalize;
+        // @ts-expect-error - Cannot use 'add' after 'finalize' (builderOnlyFinalize is MutationBuilder)
+        builderOnlyFinalize.add;
+
+        const builderInProgress = genericAPI.transformClass(ModifyTarget);
+        // @ts-expect-error - Incorrect chain: .add.property.named(...).withValue(...) should be .setTo(...)
+        builderInProgress.add.property.named("wrongFluentProp").withValue("someValue");
+        // @ts-expect-error - Incorrect chain: .add.method.named(...).withBody(...) should be .withParameters(...).withBody(...)
+        builderInProgress.add.method.named("wrongFluentMethod").withBody("return 123;");
+
+        // @ts-expect-error - Trying to use 'setTo' after .add.property(name, value) which returns ModificationBase
+        genericAPI.transformClass(ModifyTarget).add.property("someProp", "initial").setTo("value");
+
+        // @ts-expect-error - Trying to use 'withParameters' after .add.method(name, params, body) which returns ModificationBase
+        genericAPI.transformClass(ModifyTarget).add.method("someMethod", "", "").withParameters("");
     }
-}
 
-//#endregion
+    testClosureResultTransforms()
+    {
+        const modifiedResult = genericAPI.transformClosureResult(() => new ModifyTarget())
+            .add("directProperty").withValue(1) // type: number
+            .add.property("indirectProperty", { prop: 123 }) // type: { prop: number }
+            .add.property.named("fluentProperty").setTo("value") // type: string
+            .add("directMethod").withFunctionBody("return null") // type: () => null
+            .add.method("indirectMethod", "", "return null") // type: () => null
+            .add.method.named("fluentMethod").withParameters("").withBody("return null") // type: () => null
+            .finalize.modificationResult;
 
+        modifiedResult.directProperty.toFixed();
+        modifiedResult.indirectProperty.prop;
+        modifiedResult.fluentProperty.charAt(0);
+        modifiedResult.directMethod();
+        modifiedResult.indirectMethod();
+        modifiedResult.fluentMethod();
 
-// Test generic instruction blocks
-class GenericResult<BaseType> extends InstructionChain<GenericResult<BaseType>>
-{
-    resultProp: BaseType | undefined;
-}
+        // Negative tests for modifiedResult
+        // @ts-expect-error - Cannot access non-existent property
+        modifiedResult.nonExistentProperty;
+        // @ts-expect-error - Calling a number property as a function
+        modifiedResult.directProperty();
+        // @ts-expect-error - Using string method on a number property
+        modifiedResult.directProperty.charAt(0);
+        // @ts-expect-error - Accessing a sub-property that doesn't exist
+        modifiedResult.indirectProperty.nonExistentSubProp;
 
-class GenericStart<BaseType> extends InitialInstructionBlock<GenericResult<BaseType>>
-{
-    hybridMember = Hybrid({
-        accessed: ContinuesWith(GenericContinuation<BaseType, { isHybridAccessed: true; }>),
-        called: <EmbeddedType extends any>(arg: EmbeddedType) => ContinuesWith(GenericContinuation<BaseType, EmbeddedType>)
-    });
+        const builderOnlyFinalize = genericAPI.transformClosureResult(() => new ModifyTarget()).finalize;
+        // @ts-expect-error - Cannot use 'add' after 'finalize'
+        builderOnlyFinalize.add;
 
-    functionMember = <EmbeddedType>(arg: EmbeddedType) => ContinuesWith(GenericContinuation<BaseType, EmbeddedType>);
+        const builderInProgress = genericAPI.transformClosureResult(() => new ModifyTarget());
+        // @ts-expect-error - Incorrect chain: .add.property.named(...).withValue(...) should be .setTo(...)
+        builderInProgress.add.property.named("wrongFluentProp").withValue("someValue");
+        // @ts-expect-error - Incorrect chain: .add.method.named(...).withBody(...) should be .withParameters(...).withBody(...)
+        builderInProgress.add.method.named("wrongFluentMethod").withBody("return 123;");
 
-    propMember = ContinuesWith(GenericContinuation<BaseType, { isPropContinuation: true; }>);
-}
+        // @ts-expect-error - Trying to use 'setTo' after .add.property(name, value) which returns ModificationBase
+        genericAPI.transformClosureResult(() => new ModifyTarget()).add.property("someProp", "initial").setTo("value");
 
-class GenericContinuation<BaseType, EmbeddedType> extends InstructionBlock<GenericResult<BaseType>>
-{
-    baseType: BaseType;
-    embeddedType: EmbeddedType;
-    continueMethod = (closure: (base: BaseType, embedded: EmbeddedType) => void) => ContinuesWith(GenericResult<BaseType>);
-}
-
-class TestBaseType
-{
-    foo: string;
-    bar: number;
-    baz: boolean;
-}
-
-class TestEmbeddedType
-{
-    blah: number;
-    blub: number;
+        // @ts-expect-error - Trying to use 'withParameters' after .add.method(name, params, body) which returns ModificationBase
+        genericAPI.transformClosureResult(() => new ModifyTarget()).add.method("someMethod", "", "").withParameters("");
+    }
 }
